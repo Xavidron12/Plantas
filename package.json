@@ -31,6 +31,7 @@
     "@angular/router": "^21.1.0",
     "@supabase/supabase-js": "^2.90.1",
     "bootstrap": "^5.3.8",
+    "chart.js": "^4.5.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -38,6 +39,7 @@
     "@angular/build": "^21.1.0",
     "@angular/cli": "^21.1.0",
     "@angular/compiler-cli": "^21.1.0",
+    "@rollup/rollup-win32-x64-msvc": "^4.56.0",
     "jsdom": "^27.1.0",
     "typescript": "~5.9.2",
     "vitest": "^4.0.8"

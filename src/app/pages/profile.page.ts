@@ -1,116 +1,121 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../core/auth.service';
 import { noSpaces } from '../validators/no-spaces.validator';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule],
   template: `
     <div class="row justify-content-center">
-      <div class="col-12 col-md-7 col-lg-6">
-        <div class="card shadow-sm">
+      <div class="col-12 col-md-8 col-lg-6">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h2 class="mb-0">Perfil</h2>
+            <div class="text-muted">Gestiona tu usuario</div>
+          </div>
+          <a class="btn btn-outline-secondary" routerLink="/plants">Volver</a>
+        </div>
+
+        <div class="card shadow-sm" *ngIf="u(); else noUser">
           <div class="card-body">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <div>
-                <h2 class="mb-0">Perfil</h2>
-                <div class="text-muted">Gestiona tu usuario</div>
+            <div class="d-flex align-items-center gap-3 mb-3">
+              <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                   style="width: 56px; height: 56px; font-weight: 700;">
+                {{ initials() }}
               </div>
-              <a class="btn btn-outline-secondary" routerLink="/plants">Volver</a>
+
+              <div class="flex-grow-1">
+                <div class="fw-semibold">{{ u()!.name }}</div>
+                <div class="text-muted small">{{ u()!.email }}</div>
+              </div>
+
+              <span class="badge"
+                    [class.bg-dark]="u()!.role === 'admin'"
+                    [class.bg-secondary]="u()!.role !== 'admin'">
+                {{ u()!.role }}
+              </span>
             </div>
 
-            <ng-container *ngIf="user(); else noUser">
-              <div class="mb-3">
-                <div><span class="text-muted">Email:</span> <b>{{ user()!.email }}</b></div>
-                <div><span class="text-muted">Rol:</span>
-                  <span class="badge" [class.bg-dark]="isAdmin()" [class.bg-secondary]="!isAdmin()">
-                    {{ user()!.role }}
-                  </span>
-                </div>
+            <form [formGroup]="form" (ngSubmit)="save()" class="d-grid gap-2">
+              <div>
+                <label class="form-label">Nombre</label>
+                <input class="form-control" formControlName="name" />
               </div>
 
-              <form [formGroup]="form" (ngSubmit)="save()" class="d-grid gap-2">
-                <div>
-                  <label class="form-label">Nombre</label>
-                  <input class="form-control" formControlName="name" placeholder="Tu nombre">
-                  <div class="text-danger mt-1" *ngIf="showError('required')">
-                    El nombre es obligatorio
-                  </div>
-                  <div class="text-danger mt-1" *ngIf="showError('minlength')">
-                    Mínimo 3 caracteres
-                  </div>
-                  <div class="text-danger mt-1" *ngIf="showError('noSpaces')">
-                    No se permiten espacios
-                  </div>
-                </div>
+              <div class="d-flex gap-2">
+                <button class="btn btn-primary" type="submit" [disabled]="form.invalid || loading()">
+                  {{ loading() ? 'Guardando...' : 'Guardar' }}
+                </button>
 
-                <div class="d-flex gap-2">
-                  <button class="btn btn-primary" type="submit" [disabled]="form.invalid || form.pristine">
-                    Guardar
-                  </button>
+                <button class="btn btn-outline-danger" type="button" (click)="logout()">
+                  Cerrar sesión
+                </button>
 
-                  <button class="btn btn-outline-danger" type="button" (click)="logout()">
-                    Logout
-                  </button>
-                </div>
-              </form>
-
-              <div class="mt-3 d-flex gap-2">
-                <a class="btn btn-outline-primary" routerLink="/plants">Ir a plantas</a>
-                <a class="btn btn-outline-dark" routerLink="/admin" *ngIf="isAdmin()">Ir a Admin</a>
+                <a class="btn btn-outline-secondary ms-auto" routerLink="/plants">
+                  Ir a plantas
+                </a>
               </div>
+            </form>
 
-              <div class="alert alert-success mt-3 py-2" *ngIf="msg()">
-                {{ msg() }}
-              </div>
-            </ng-container>
-
-            <ng-template #noUser>
-              <div class="alert alert-warning mb-0">
-                No hay usuario logueado.
-              </div>
-              <div class="mt-2">
-                <a routerLink="/login">Ir a login</a>
-              </div>
-            </ng-template>
+            <div class="alert alert-danger mt-3 py-2" *ngIf="error()">
+              {{ error() }}
+            </div>
           </div>
         </div>
+
+        <ng-template #noUser>
+          <div class="alert alert-warning">
+            No hay sesión iniciada.
+            <a routerLink="/login" class="ms-2">Ir al login</a>
+          </div>
+        </ng-template>
       </div>
     </div>
-  `
+  `,
 })
 export class ProfilePage {
-  private fb = inject(FormBuilder);
   private auth = inject(AuthService);
   private router = inject(Router);
+  private fb = inject(FormBuilder);
 
-  user = computed(() => this.auth.user());
-  isAdmin = computed(() => this.auth.isAdmin());
-  msg = signal('');
+  loading = signal(false);
+  error = signal('');
+
+  u = computed(() => this.auth.user());
+
+  initials = computed(() => {
+    const name = (this.u()?.name ?? '').trim();
+    if (!name) return 'U';
+    const parts = name.split(/\s+/).slice(0, 2);
+    return parts.map(p => p[0]?.toUpperCase() ?? '').join('') || 'U';
+  });
 
   form = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(3), noSpaces]],
   });
 
   constructor() {
-    const u = this.auth.user();
-    if (u) this.form.patchValue({ name: u.name });
-  }
-
-  showError(err: string) {
-    const c = this.form.controls.name;
-    return c.touched && !!c.errors?.[err];
+    const name = this.u()?.name ?? '';
+    this.form.patchValue({ name });
   }
 
   async save() {
-    this.msg.set('');
+    this.error.set('');
     this.form.markAllAsTouched();
-    const name = this.form.value.name ?? '';
-    await this.auth.updateProfile(name);
-    this.msg.set('Perfil actualizado');
-    this.form.markAsPristine();
+    if (this.form.invalid) return;
+
+    this.loading.set(true);
+    try {
+      const name = this.form.value.name ?? '';
+      await this.auth.updateProfile(name);
+    } catch (e: any) {
+      this.error.set(e?.message ?? String(e));
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   async logout() {

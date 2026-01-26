@@ -1,124 +1,196 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Subject, debounceTime, startWith } from 'rxjs';
 import { PlantsService } from '../core/plants.service';
-import { AuthService } from '../core/auth.service';
 import { FavoritesService } from '../core/favorites.service';
+import { AuthService } from '../core/auth.service';
 import { Plant } from '../models/plant.model';
 
 @Component({
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <div class="d-flex align-items-center justify-content-between mb-3">
-      <div>
-        <h2 class="mb-0">Plantas</h2>
-        <p class="text-muted mb-0" *ngIf="userEmail()">Sesión: {{ userEmail() }}</p>
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h2 class="mb-0">Mis plantas</h2>
+          <div class="text-muted">Listado de tus plantas (con favoritos)</div>
+        </div>
       </div>
 
-      <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary" routerLink="/profile">Perfil</a>
-        <a class="btn btn-outline-dark" routerLink="/admin" *ngIf="isAdmin()">Admin</a>
+      <div class="alert alert-info" *ngIf="loading()">
+        Cargando...
       </div>
-    </div>
 
-    <div class="card shadow-sm mb-3">
-      <div class="card-body">
-        <label class="form-label mb-1">Buscar</label>
-        <input
-          class="form-control"
-          placeholder="Ej: planta..."
-          [(ngModel)]="term"
-          (ngModelChange)="termChanged$.next($event)"
-        >
-      </div>
-    </div>
+      <div class="card mb-3" *ngIf="!loading()">
+        <div class="card-body">
+          <label class="form-label mb-2">Buscar</label>
+          <input
+            class="form-control"
+            placeholder="Buscar planta..."
+            [ngModel]="term()"
+            (ngModelChange)="term.set($event)"
+          />
+          <div class="form-text">Filtra por nombre</div>
 
-    <div *ngIf="filteredPlants().length === 0" class="alert alert-warning">
-      No hay plantas para mostrar.
-    </div>
-
-    <div class="row g-3" *ngIf="filteredPlants().length > 0">
-      <div class="col-12 col-md-6 col-lg-4" *ngFor="let p of filteredPlants()">
-        <div class="card h-100 shadow-sm">
-          <img
-            [src]="imgFor(p)"
-            class="card-img-top"
-            alt="Foto planta"
-            style="height: 160px; object-fit: cover;"
-          >
-
-          <div class="card-body d-flex flex-column">
-            <div class="d-flex align-items-start justify-content-between gap-2">
-              <div>
-                <h5 class="card-title mb-1">{{ p.name }}</h5>
-                <p class="card-text text-muted mb-2">{{ p.description || 'Sin descripción' }}</p>
-              </div>
-
-              <button
-                class="btn btn-light border"
-                type="button"
-                (click)="toggleFav(p.id)"
-                [disabled]="!isLoggedIn()"
-                title="Favorito"
-              >
-                <span style="font-size: 20px;">
-                  {{ favorites.isFavorite(p.id) ? '❤️' : '🤍' }}
-                </span>
-              </button>
-            </div>
-
-            <div class="mt-auto">
-              <a class="btn btn-primary w-100" [routerLink]="['/plants', p.id]">Información</a>
-            </div>
-          </div>
-
-          <div class="card-footer small text-muted">
-            Ubicación: {{ p.lat }}, {{ p.lng }}
+          <div class="form-check mt-2">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="onlyFavs"
+              [ngModel]="onlyFavs()"
+              (ngModelChange)="onlyFavs.set($event)"
+            />
+            <label class="form-check-label" for="onlyFavs">Solo favoritos</label>
           </div>
         </div>
       </div>
-    </div>
-  `
-})
-export class PlantsPage {
-  private plantsService = inject(PlantsService);
-  private auth = inject(AuthService);
-  favorites = inject(FavoritesService);
 
-  term = '';
-  termChanged$ = new Subject<string>();
+      <div class="alert alert-danger" *ngIf="error()">
+        {{ error() }}
+      </div>
+
+      <div class="alert alert-warning" *ngIf="!loading() && !error() && filteredPlants().length === 0">
+        No hay plantas para mostrar.
+      </div>
+
+      <div class="row g-3" *ngIf="!loading() && !error() && filteredPlants().length > 0">
+        <div class="col-12 col-md-6 col-lg-4" *ngFor="let p of filteredPlants()">
+          <div class="card h-100 shadow-sm">
+            <div class="ratio ratio-16x9 bg-light" *ngIf="photoUrlOf(p); else noPhoto">
+              <img [src]="photoUrlOf(p)!" class="w-100 h-100" style="object-fit: cover;" alt="Foto planta" />
+            </div>
+
+            <ng-template #noPhoto>
+              <div class="ratio ratio-16x9 bg-light d-flex align-items-center justify-content-center text-muted">
+                Sin foto
+              </div>
+            </ng-template>
+
+            <div class="card-body d-flex flex-column">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <h5 class="mb-1">{{ p.name }}</h5>
+
+                <button
+                  type="button"
+                  class="btn btn-sm"
+                  [class.btn-outline-danger]="!isFav(p.id)"
+                  [class.btn-danger]="isFav(p.id)"
+                  (click)="toggleFav(p.id)"
+                  title="Favorito"
+                >
+                  {{ isFav(p.id) ? '♥' : '♡' }}
+                </button>
+              </div>
+
+              <p class="text-muted mb-3" [title]="p.description || ''">
+                {{ shortDesc(p.description || '') }}
+              </p>
+
+              <div class="mt-auto d-flex justify-content-end">
+                <a class="btn btn-outline-primary btn-sm" [routerLink]="['/plants', p.id]">Información</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  `,
+})
+export class PlantsPage implements OnInit {
+  private plantsService = inject(PlantsService);
+  private favsService = inject(FavoritesService);
+  private auth = inject(AuthService);
+
+  term = signal('');
+  onlyFavs = signal(false);
+
+  loading = signal(true);
+  error = signal('');
 
   plants = signal<Plant[]>([]);
-  userEmail = computed(() => this.auth.user()?.email ?? '');
-  isLoggedIn = computed(() => this.auth.isLoggedIn());
-  isAdmin = computed(() => this.auth.isAdmin());
+  favIds = signal<Set<string>>(new Set());
 
   filteredPlants = computed(() => {
-    const t = this.term.toLowerCase().trim();
-    return this.plants().filter(p => p.name.toLowerCase().includes(t));
+    const t = this.term().toLowerCase().trim();
+    const onlyFavs = this.onlyFavs();
+    const favs = this.favIds();
+
+    let list = this.plants();
+
+    if (t) list = list.filter(p => p.name.toLowerCase().includes(t));
+    if (onlyFavs) list = list.filter(p => favs.has(p.id));
+
+    return list;
   });
 
-  constructor() {
-    this.plantsService.getAll().subscribe(list => this.plants.set(list));
-
-    this.termChanged$.pipe(startWith(''), debounceTime(200)).subscribe(v => {
-      this.term = v;
-    });
-
-    this.plantsService.refreshAll();
-    this.favorites.refresh();
+  async ngOnInit() {
+    await this.init();
   }
 
-  imgFor(p: Plant) {
-    return p.photoUrl && p.photoUrl.trim().length > 0
-      ? p.photoUrl
-      : 'https://picsum.photos/600/300?random=' + encodeURIComponent(p.id);
+  private async waitForUser(maxMs = 10000) {
+    const start = Date.now();
+    while (!this.auth.user()) {
+      if (Date.now() - start > maxMs) return null;
+      await new Promise(r => setTimeout(r, 100));
+    }
+    return this.auth.user();
+  }
+
+  private async init() {
+    this.loading.set(true);
+    this.error.set('');
+
+    try {
+      const user = await this.waitForUser();
+      if (!user) {
+        this.error.set('No hay sesión. Vuelve a iniciar sesión.');
+        return;
+      }
+
+      const favs = await this.favsService.getMyFavoritePlantIds();
+      this.favIds.set(favs);
+
+      const list = await this.plantsService.getByOwner(user.id);
+      this.plants.set(list);
+    } catch (e: any) {
+      this.error.set(e?.message ?? String(e));
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  photoUrlOf(p: Plant): string | null {
+    return (p as any).photoUrl ?? (p as any).photo_url ?? null;
+  }
+
+  shortDesc(desc: string): string {
+    const s = desc.trim();
+    if (!s) return '—';
+    return s.length > 70 ? s.slice(0, 70) + '…' : s;
+  }
+
+  isFav(plantId: string): boolean {
+    return this.favIds().has(plantId);
   }
 
   async toggleFav(plantId: string) {
-    await this.favorites.toggle(plantId);
+    this.error.set('');
+    try {
+      const current = this.favIds();
+      const wasFav = current.has(plantId);
+
+      const nowFav = await this.favsService.toggle(plantId, wasFav);
+
+      const next = new Set(current);
+      if (nowFav) next.add(plantId);
+      else next.delete(plantId);
+
+      this.favIds.set(next);
+    } catch (e: any) {
+      this.error.set(e?.message ?? String(e));
+    }
   }
 }

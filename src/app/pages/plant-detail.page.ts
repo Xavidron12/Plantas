@@ -1,136 +1,249 @@
-import { Component, inject, signal } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  ViewChild,
+  computed,
+  inject,
+  signal,
+  OnDestroy,
+  OnInit,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import Chart from 'chart.js/auto';
+
 import { PlantsService } from '../core/plants.service';
-import { RecordsService } from '../core/records.service';
+import { RecordsService, PlantRecord } from '../core/records.service';
+import { FavoritesService } from '../core/favorites.service';
 import { Plant } from '../models/plant.model';
-import { PlantRecord } from '../models/record.model';
 
 @Component({
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <div class="d-flex align-items-center justify-content-between mb-3">
-      <div>
-        <h2 class="mb-0">Detalle de planta</h2>
-        <p class="text-muted mb-0">Información y registros en tiempo real (mock)</p>
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h2 class="mb-0">Detalle de planta</h2>
+          <div class="text-muted">Realtime + gráfica</div>
+        </div>
+        <a class="btn btn-outline-secondary" routerLink="/plants">Volver</a>
       </div>
 
-      <a class="btn btn-outline-secondary" routerLink="/plants">Volver</a>
-    </div>
+      <div class="alert alert-danger" *ngIf="error()">{{ error() }}</div>
 
-    <ng-container *ngIf="notFound(); else content">
-      <div class="alert alert-warning">
-        Planta no encontrada.
-      </div>
-    </ng-container>
-
-    <ng-template #content>
       <ng-container *ngIf="plant(); else loading">
-        <div class="card shadow-sm mb-3">
-          <img
-            [src]="imgFor(plant()!)"
-            class="card-img-top"
-            alt="Foto planta"
-            style="height: 280px; object-fit: cover;"
-          >
-
+        <div class="card mb-3">
           <div class="card-body">
-            <h3 class="card-title mb-1">{{ plant()!.name }}</h3>
-            <p class="text-muted mb-3">{{ plant()!.description || 'Sin descripción' }}</p>
+            <div class="d-flex justify-content-between align-items-start gap-3">
+              <div class="flex-grow-1">
+                <h3 class="mb-1">{{ plant()!.name }}</h3>
+                <div class="text-muted" *ngIf="plant()!.description">{{ plant()!.description }}</div>
+                <div class="text-muted mt-2">
+                  Ubicación: {{ plant()!.lat }}, {{ plant()!.lng }}
+                </div>
 
-            <div class="row g-2">
-              <div class="col-12 col-md-6">
-                <div class="border rounded p-2">
-                  <div class="small text-muted">Latitud</div>
-                  <div class="fw-semibold">{{ plant()!.lat }}</div>
+                <div class="mt-3" *ngIf="photoUrl()">
+                  <img [src]="photoUrl()!" class="img-fluid rounded border" style="max-height: 260px;">
                 </div>
               </div>
-              <div class="col-12 col-md-6">
-                <div class="border rounded p-2">
-                  <div class="small text-muted">Longitud</div>
-                  <div class="fw-semibold">{{ plant()!.lng }}</div>
-                </div>
-              </div>
-            </div>
 
-            <div class="mt-3 small text-muted">
-              ID: {{ plant()!.id }} · Owner: {{ plant()!.ownerId }}
+              <div class="d-flex flex-column gap-2">
+                <button
+                  type="button"
+                  class="btn"
+                  [class.btn-outline-danger]="!isFav()"
+                  [class.btn-danger]="isFav()"
+                  (click)="toggleFav()"
+                  title="Favorito"
+                >
+                  {{ isFav() ? '♥' : '♡' }}
+                </button>
+
+                <button class="btn btn-outline-primary" type="button" (click)="startDemo()">
+                  Iniciar demo
+                </button>
+
+                <button class="btn btn-outline-secondary" type="button" (click)="stopDemo()">
+                  Parar demo
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="card shadow-sm">
+        <div class="card mb-3">
           <div class="card-body">
-            <h4 class="mb-3">Últimos registros (mock)</h4>
+            <h5 class="mb-3">Gráfica en tiempo real</h5>
+            <canvas #chartCanvas></canvas>
+          </div>
+        </div>
 
-            <div *ngIf="lastRecords().length === 0" class="alert alert-info mb-0">
-              Aún no hay registros (espera unos segundos).
+        <div class="card">
+          <div class="card-body">
+            <h5 class="mb-3">Últimos registros</h5>
+
+            <div class="alert alert-warning" *ngIf="records().length === 0">
+              Aún no hay registros.
             </div>
 
-            <div class="table-responsive" *ngIf="lastRecords().length > 0">
-              <table class="table table-sm align-middle">
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Consumo (W)</th>
-                    <th>Generación (W)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let r of lastRecords()">
-                    <td class="text-muted">{{ r.createdAt }}</td>
-                    <td>{{ r.consumptionW }}</td>
-                    <td>{{ r.generationW }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <small class="text-muted">
-              (Cuando tengamos Supabase, esto se conectará por websockets en tiempo real)
-            </small>
+            <ul class="mb-0" *ngIf="records().length > 0">
+              <li *ngFor="let r of records().slice().reverse()">
+                {{ r.createdAt }} | Consumo: {{ r.consumptionW }}W | Generación: {{ r.generationW }}W
+              </li>
+            </ul>
           </div>
         </div>
       </ng-container>
 
       <ng-template #loading>
-        <div class="alert alert-secondary">Cargando...</div>
+        <div class="alert alert-info">Cargando...</div>
       </ng-template>
-    </ng-template>
-  `
+    </div>
+  `,
 })
-export class PlantDetailPage {
+export class PlantDetailPage implements OnInit, AfterViewInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private plants = inject(PlantsService);
-  private records = inject(RecordsService);
+  private recordsService = inject(RecordsService);
+  private favs = inject(FavoritesService);
+
+  @ViewChild('chartCanvas') chartCanvas!: ElementRef<HTMLCanvasElement>;
+  private chart: Chart | null = null;
 
   plant = signal<Plant | null>(null);
-  lastRecords = signal<PlantRecord[]>([]);
-  notFound = signal(false);
+  records = signal<PlantRecord[]>([]);
+  error = signal('');
 
-  constructor() {
-    const id = this.route.snapshot.paramMap.get('id') ?? '';
+  favIds = signal<Set<string>>(new Set());
 
-    this.plants.getById(id).subscribe(p => {
+  photoUrl = computed(() => {
+    const p = this.plant();
+    if (!p) return null;
+    return (p as any).photoUrl ?? (p as any).photo_url ?? null;
+  });
+
+  isFav = computed(() => {
+    const p = this.plant();
+    if (!p) return false;
+    return this.favIds().has(p.id);
+  });
+
+  private plantId = '';
+  private sub: { unsubscribe: () => void } | null = null;
+
+  async ngOnInit() {
+    this.error.set('');
+    try {
+      this.plantId = this.route.snapshot.paramMap.get('id') ?? '';
+      const p = await this.plants.getById(this.plantId);
       if (!p) {
-        this.notFound.set(true);
+        this.error.set('Planta no encontrada.');
         return;
       }
-
       this.plant.set(p);
 
-      this.records.startMockEmitter(p.id);
+      const favs = await this.favs.getMyFavoritePlantIds();
+      this.favIds.set(favs);
+    } catch (e: any) {
+      this.error.set(e?.message ?? String(e));
+    }
+  }
 
-      this.records.getByPlant(p.id).subscribe(list => {
-        this.lastRecords.set(list.slice(-10).reverse());
+  async ngAfterViewInit() {
+    this.initChart();
+
+    // ✅ ahora sí: carga inicial + realtime (ya existe el canvas)
+    this.error.set('');
+    try {
+      const initial = await this.recordsService.getByPlant(this.plantId);
+      this.records.set(initial);
+      this.updateChart(initial);
+
+      this.sub = this.recordsService.watchPlant(this.plantId, (list) => {
+        this.records.set(list);
+        this.updateChart(list);
       });
+    } catch (e: any) {
+      this.error.set(e?.message ?? String(e));
+    }
+  }
+
+  ngOnDestroy() {
+    this.sub?.unsubscribe();
+    if (this.plantId) {
+      this.recordsService.stopRealtime(this.plantId);
+      this.recordsService.stopMockInserts(this.plantId);
+    }
+    this.chart?.destroy();
+  }
+
+  private initChart() {
+    const ctx = this.chartCanvas?.nativeElement.getContext('2d');
+    if (!ctx) return;
+
+    this.chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'Consumo (W)', data: [] },
+          { label: 'Generación (W)', data: [] },
+        ],
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        scales: { y: { beginAtZero: true } },
+      },
     });
   }
 
-  imgFor(p: Plant) {
-    return p.photoUrl && p.photoUrl.trim().length > 0
-      ? p.photoUrl
-      : 'https://picsum.photos/1200/600?random=' + encodeURIComponent(p.id);
+  private updateChart(list: PlantRecord[]) {
+    if (!this.chart) return;
+
+    const last = list.slice(-20);
+    const labels = last.map(r => {
+      const d = new Date(r.createdAt);
+      return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d
+        .getSeconds()
+        .toString()
+        .padStart(2, '0')}`;
+    });
+
+    this.chart.data.labels = labels;
+    this.chart.data.datasets[0].data = last.map(r => r.consumptionW);
+    this.chart.data.datasets[1].data = last.map(r => r.generationW);
+    this.chart.update();
+  }
+
+  async toggleFav() {
+    const p = this.plant();
+    if (!p) return;
+
+    this.error.set('');
+    try {
+      const current = this.favIds();
+      const nowFav = await this.favs.toggle(p.id, current.has(p.id));
+
+      const next = new Set(current);
+      if (nowFav) next.add(p.id);
+      else next.delete(p.id);
+
+      this.favIds.set(next);
+    } catch (e: any) {
+      this.error.set(e?.message ?? String(e));
+    }
+  }
+
+  startDemo() {
+    if (!this.plantId) return;
+    this.recordsService.startMockInserts(this.plantId, 2000);
+  }
+
+  stopDemo() {
+    if (!this.plantId) return;
+    this.recordsService.stopMockInserts(this.plantId);
   }
 }

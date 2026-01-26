@@ -1,16 +1,69 @@
-<header class="p-3 border-bottom">
-  <div class="container d-flex align-items-center justify-content-between">
-    <a routerLink="/plants" class="text-decoration-none fw-bold">Plantas Solares</a>
+<nav class="navbar navbar-expand bg-white border-bottom">
+  <div class="container">
+    <a class="navbar-brand fw-semibold text-primary" routerLink="/plants">Plantas Solares</a>
 
-    <nav class="d-flex gap-3">
-      <a routerLink="/plants">Plantas</a>
-      <a routerLink="/profile">Perfil</a>
-      <a routerLink="/admin">Admin</a>
-      <a routerLink="/login">Login</a>
-    </nav>
+    <div class="navbar-nav me-auto">
+      <a class="nav-link" routerLink="/plants">Plantas</a>
+      <a class="nav-link" routerLink="/admin" *ngIf="isLogged() && isAdmin()">Admin</a>
+    </div>
+
+    <!-- SOLO AVATAR (sin email, sin link Perfil) -->
+    <div class="position-relative" *ngIf="isLogged()">
+      <button
+        type="button"
+        class="btn p-0 border-0 bg-transparent"
+        (click)="toggleMenu()"
+        aria-label="Menú usuario"
+      >
+        <span
+          class="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary text-white"
+          style="width: 36px; height: 36px; font-weight: 700;"
+        >
+          {{ avatarLetter() }}
+        </span>
+      </button>
+
+      <!-- Dropdown -->
+      <div
+        class="card shadow-sm position-absolute end-0 mt-2"
+        style="min-width: 260px; z-index: 1000;"
+        *ngIf="menuOpen()"
+      >
+        <div class="card-body py-2">
+          <div class="small text-muted">Sesión iniciada como</div>
+          <div class="fw-semibold">{{ user()?.email }}</div>
+          <div class="mt-1">
+            <span class="badge text-bg-secondary">{{ user()?.role }}</span>
+          </div>
+
+          <hr class="my-2" />
+
+          <a class="dropdown-item d-block py-1" routerLink="/profile" (click)="closeMenu()">
+            Perfil
+          </a>
+
+          <a
+            class="dropdown-item d-block py-1"
+            routerLink="/admin"
+            *ngIf="isAdmin()"
+            (click)="closeMenu()"
+          >
+            Admin
+          </a>
+
+          <button class="btn btn-outline-danger btn-sm w-100 mt-2" (click)="logout()">
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Si NO hay sesión, puedes dejar Login/Register aquí si quieres -->
+    <div class="navbar-nav" *ngIf="!isLogged()">
+      <a class="nav-link" routerLink="/login">Login</a>
+      <a class="nav-link" routerLink="/register">Crear cuenta</a>
+    </div>
   </div>
-</header>
+</nav>
 
-<main class="container py-4">
-  <router-outlet></router-outlet>
-</main>
+<router-outlet></router-outlet>

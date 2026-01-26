@@ -36,18 +36,24 @@ export class AuthService {
 
     const email = sessionUser.email ?? '';
 
-    const { data: profile } = await this.sb.supabase
+    // 👇 LEEMOS SIEMPRE EL ROL DESDE public.profiles
+    const { data: profile, error } = await this.sb.supabase
       .from('profiles')
       .select('name, role')
       .eq('id', sessionUser.id)
       .maybeSingle();
 
+    // Si falla la lectura por RLS o cualquier cosa, al menos no rompemos
+    const dbName = profile?.name as string | undefined;
+    const dbRole = profile?.role as UserRole | undefined;
+
     const name =
-      (profile?.name as string | undefined) ??
+      dbName ??
       (sessionUser.user_metadata?.['name'] as string | undefined) ??
       (email.split('@')[0] ?? 'user');
 
-    const role = ((profile?.role as UserRole | undefined) ?? 'client');
+    const role: UserRole = dbRole === 'admin' ? 'admin' : 'client';
+
 
     this._user.set({
       id: sessionUser.id,
@@ -76,8 +82,6 @@ export class AuthService {
     if (error) return { ok: false, message: error.message };
     if (!data.user) return { ok: false, message: 'No se pudo registrar' };
 
-    // OJO: NO hacemos await aquí para evitar que se quede colgado.
-    // Queremos que register() termine sí o sí.
     void this.sb.supabase.auth.signOut();
     this._user.set(null);
 
