@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -22,8 +22,10 @@ import { noSpaces } from '../validators/no-spaces.validator';
         <div class="card shadow-sm" *ngIf="u(); else noUser">
           <div class="card-body">
             <div class="d-flex align-items-center gap-3 mb-3">
-              <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
-                   style="width: 56px; height: 56px; font-weight: 700;">
+              <div
+                class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                style="width: 56px; height: 56px; font-weight: 700;"
+              >
                 {{ initials() }}
               </div>
 
@@ -32,9 +34,11 @@ import { noSpaces } from '../validators/no-spaces.validator';
                 <div class="text-muted small">{{ u()!.email }}</div>
               </div>
 
-              <span class="badge"
-                    [class.bg-dark]="u()!.role === 'admin'"
-                    [class.bg-secondary]="u()!.role !== 'admin'">
+              <span
+                class="badge"
+                [class.bg-dark]="u()!.role === 'admin'"
+                [class.bg-secondary]="u()!.role !== 'admin'"
+              >
                 {{ u()!.role }}
               </span>
             </div>
@@ -43,6 +47,9 @@ import { noSpaces } from '../validators/no-spaces.validator';
               <div>
                 <label class="form-label">Nombre</label>
                 <input class="form-control" formControlName="name" />
+                <div class="text-danger small mt-1" *ngIf="form.controls.name.touched && form.controls.name.invalid">
+                  Nombre inválido (mínimo 3, sin espacios).
+                </div>
               </div>
 
               <div class="d-flex gap-2">
@@ -98,8 +105,11 @@ export class ProfilePage {
   });
 
   constructor() {
-    const name = this.u()?.name ?? '';
-    this.form.patchValue({ name });
+    effect(() => {
+      const user = this.u();
+      if (!user) return;
+      this.form.patchValue({ name: user.name ?? '' }, { emitEvent: false });
+    });
   }
 
   async save() {
@@ -109,7 +119,7 @@ export class ProfilePage {
 
     this.loading.set(true);
     try {
-      const name = this.form.value.name ?? '';
+      const name = (this.form.value.name ?? '').toString();
       await this.auth.updateProfile(name);
     } catch (e: any) {
       this.error.set(e?.message ?? String(e));

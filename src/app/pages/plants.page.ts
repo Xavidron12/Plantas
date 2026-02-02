@@ -1,7 +1,9 @@
-import { Component, computed, inject, signal, OnInit } from '@angular/core';
+import { Component, computed, inject, signal, OnInit, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
 import { PlantsService } from '../core/plants.service';
 import { FavoritesService } from '../core/favorites.service';
 import { AuthService } from '../core/auth.service';
@@ -19,37 +21,52 @@ import { Plant } from '../models/plant.model';
         </div>
       </div>
 
-      <div class="alert alert-info" *ngIf="loading()">
-        Cargando...
-      </div>
+      <div class="alert alert-info" *ngIf="loading()">Cargando...</div>
 
       <div class="card mb-3" *ngIf="!loading()">
         <div class="card-body">
-          <label class="form-label mb-2">Buscar</label>
-          <input
-            class="form-control"
-            placeholder="Buscar planta..."
-            [ngModel]="term()"
-            (ngModelChange)="term.set($event)"
-          />
-          <div class="form-text">Filtra por nombre</div>
+          <form #f="ngForm" class="d-grid gap-2" (ngSubmit)="$event.preventDefault()">
+            <div>
+              <label class="form-label mb-2">Buscar</label>
 
-          <div class="form-check mt-2">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              id="onlyFavs"
-              [ngModel]="onlyFavs()"
-              (ngModelChange)="onlyFavs.set($event)"
-            />
-            <label class="form-check-label" for="onlyFavs">Solo favoritos</label>
-          </div>
+              <input
+                class="form-control"
+                name="term"
+                [ngModel]="term()"
+                (ngModelChange)="term.set($event)"
+                placeholder="Buscar planta..."
+                minlength="2"
+              />
+
+              <div class="form-text">Escribe al menos 2 caracteres para buscar (o deja vacío para ver todas).</div>
+
+              <div class="text-danger small mt-1" *ngIf="f.controls['term']?.touched && f.controls['term']?.invalid">
+                El texto de búsqueda debe tener al menos 2 caracteres.
+              </div>
+            </div>
+
+            <div class="form-check mt-2">
+              <input
+                class="form-check-input"
+                type="checkbox"
+                id="onlyFavs"
+                name="onlyFavs"
+                [ngModel]="onlyFavs()"
+                (ngModelChange)="onlyFavs.set($event)"
+              />
+              <label class="form-check-label" for="onlyFavs">Solo favoritos</label>
+            </div>
+
+            <div class="mt-2">
+              <button class="btn btn-sm btn-outline-primary" type="button" (click)="refresh()">
+                Recargar
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
-      <div class="alert alert-danger" *ngIf="error()">
-        {{ error() }}
-      </div>
+      <div class="alert alert-danger" *ngIf="error()">{{ error() }}</div>
 
       <div class="alert alert-warning" *ngIf="!loading() && !error() && filteredPlants().length === 0">
         No hay plantas para mostrar.
@@ -59,7 +76,12 @@ import { Plant } from '../models/plant.model';
         <div class="col-12 col-md-6 col-lg-4" *ngFor="let p of filteredPlants()">
           <div class="card h-100 shadow-sm">
             <div class="ratio ratio-16x9 bg-light" *ngIf="photoUrlOf(p); else noPhoto">
-              <img [src]="photoUrlOf(p)!" class="w-100 h-100" style="object-fit: cover;" alt="Foto planta" />
+              <img
+                [src]="photoUrlOf(p)!"
+                class="w-100 h-100"
+                style="object-fit: cover;"
+                alt="Foto planta"
+              />
             </div>
 
             <ng-template #noPhoto>
@@ -95,7 +117,6 @@ import { Plant } from '../models/plant.model';
           </div>
         </div>
       </div>
-
     </div>
   `,
 })
@@ -103,6 +124,7 @@ export class PlantsPage implements OnInit {
   private plantsService = inject(PlantsService);
   private favsService = inject(FavoritesService);
   private auth = inject(AuthService);
+  private destroyRef = inject(DestroyRef);
 
   term = signal('');
   onlyFavs = signal(false);
@@ -113,14 +135,20 @@ export class PlantsPage implements OnInit {
   plants = signal<Plant[]>([]);
   favIds = signal<Set<string>>(new Set());
 
+  private ownerId = '';
+
   filteredPlants = computed(() => {
-    const t = this.term().toLowerCase().trim();
+    const raw = this.term();
+    const t = raw.toLowerCase().trim();
     const onlyFavs = this.onlyFavs();
     const favs = this.favIds();
 
     let list = this.plants();
 
-    if (t) list = list.filter(p => p.name.toLowerCase().includes(t));
+    if (t.length >= 2) {
+      list = list.filter(p => (p.name ?? '').toLowerCase().includes(t));
+    }
+
     if (onlyFavs) list = list.filter(p => favs.has(p.id));
 
     return list;
@@ -150,11 +178,20 @@ export class PlantsPage implements OnInit {
         return;
       }
 
+      this.ownerId = user.id;
+
+      // favoritos
       const favs = await this.favsService.getMyFavoritePlantIds();
       this.favIds.set(favs);
 
-      const list = await this.plantsService.getByOwner(user.id);
-      this.plants.set(list);
+      // ✅ Stream del servicio (Subject + pipe)
+      this.plantsService
+        .plantsByOwner$(this.ownerId)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(list => this.plants.set(list));
+
+      // ✅ carga inicial
+      await this.plantsService.refreshByOwner(this.ownerId);
     } catch (e: any) {
       this.error.set(e?.message ?? String(e));
     } finally {
@@ -162,8 +199,18 @@ export class PlantsPage implements OnInit {
     }
   }
 
+  async refresh() {
+    if (!this.ownerId) return;
+    this.error.set('');
+    try {
+      await this.plantsService.refreshByOwner(this.ownerId);
+    } catch (e: any) {
+      this.error.set(e?.message ?? String(e));
+    }
+  }
+
   photoUrlOf(p: Plant): string | null {
-    return (p as any).photoUrl ?? (p as any).photo_url ?? null;
+    return (p as any).photo_url ?? (p as any).photoUrl ?? null;
   }
 
   shortDesc(desc: string): string {

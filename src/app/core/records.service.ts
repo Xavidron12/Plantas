@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from '../services/supabase.service';
 
+import { BehaviorSubject, Observable, map, shareReplay } from 'rxjs';
+
 export type RecordRow = {
   id: string;
   plant_id: string;
@@ -30,11 +32,33 @@ function mapRow(r: RecordRow): PlantRecord {
 @Injectable({ providedIn: 'root' })
 export class RecordsService {
   private channels = new Map<string, any>();
+  private byPlantSubjects = new Map<string, BehaviorSubject<PlantRecord[]>>();
   private mockTimers = new Map<string, any>();
 
   constructor(private sb: SupabaseService) {}
 
-  async getByPlant(plantId: string): Promise<PlantRecord[]> {
+  // =========================
+  // Subject por planta
+  // =========================
+  private subjectForPlant(plantId: string): BehaviorSubject<PlantRecord[]> {
+    let s = this.byPlantSubjects.get(plantId);
+    if (!s) {
+      s = new BehaviorSubject<PlantRecord[]>([]);
+      this.byPlantSubjects.set(plantId, s);
+    }
+    return s;
+  }
+
+  // ✅ Observable “de libro”
+  recordsByPlant$(plantId: string): Observable<PlantRecord[]> {
+    return this.subjectForPlant(plantId).asObservable().pipe(
+      map(list => list ?? []),
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
+  }
+
+  // ✅ carga inicial (para que la page la llame una vez)
+  async refreshPlant(plantId: string): Promise<void> {
     const { data, error } = await this.sb.supabase
       .from('records')
       .select('id, plant_id, consumption_w, generation_w, created_at')
@@ -42,21 +66,14 @@ export class RecordsService {
       .order('created_at', { ascending: true });
 
     if (error) throw error;
-    return (data as RecordRow[]).map(mapRow);
+
+    this.subjectForPlant(plantId).next((data ?? []).map(mapRow));
   }
 
-  watchPlant(plantId: string, onChange: (list: PlantRecord[]) => void) {
-    let list: PlantRecord[] = [];
+  // ✅ activa realtime (INSERT)
+  startRealtime(plantId: string) {
+    if (this.channels.has(plantId)) return; // ya activo
 
-    // 1) carga inicial
-    this.getByPlant(plantId)
-      .then(initial => {
-        list = initial;
-        onChange(list);
-      })
-      .catch(() => {});
-
-    // 2) realtime inserts
     const ch = this.sb.supabase
       .channel(`records:${plantId}`)
       .on(
@@ -69,17 +86,13 @@ export class RecordsService {
         },
         (payload: any) => {
           const row = payload.new as RecordRow;
-          list = [...list, mapRow(row)];
-          onChange(list);
+          const current = this.subjectForPlant(plantId).value;
+          this.subjectForPlant(plantId).next([...current, mapRow(row)]);
         }
       )
       .subscribe();
 
     this.channels.set(plantId, ch);
-
-    return {
-      unsubscribe: () => this.stopRealtime(plantId),
-    };
   }
 
   stopRealtime(plantId: string) {
@@ -90,6 +103,9 @@ export class RecordsService {
     }
   }
 
+  // =========================
+  // DEMO inserts (mock)
+  // =========================
   async insertMock(plantId: string) {
     const consumption = Math.floor(200 + Math.random() * 600);
     const generation = Math.floor(100 + Math.random() * 800);

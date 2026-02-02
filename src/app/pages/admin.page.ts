@@ -1,6 +1,8 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+
 import { PlantsService } from '../core/plants.service';
 import { AuthService } from '../core/auth.service';
 import { Plant } from '../models/plant.model';
@@ -46,7 +48,7 @@ import { PlantFormComponent } from '../components/plant-form.component';
 
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h5 class="mb-0">Todas las plantas</h5>
-          <button class="btn btn-sm btn-outline-primary" (click)="loadAll()">
+          <button class="btn btn-sm btn-outline-primary" (click)="refreshAll()">
             Recargar
           </button>
         </div>
@@ -94,6 +96,7 @@ import { PlantFormComponent } from '../components/plant-form.component';
 export class AdminPage implements OnInit {
   private plantsService = inject(PlantsService);
   private auth = inject(AuthService);
+  private destroyRef = inject(DestroyRef);
 
   isAdmin = computed(() => this.auth.isAdmin());
 
@@ -104,7 +107,6 @@ export class AdminPage implements OnInit {
   editingId = signal<string>('');
   editingPlant = signal<Plant | null>(null);
 
-  // ✅ Para evitar el bug de refrescar (F5) antes de que supabase restaure la sesión
   private async waitForUser(maxMs = 4000) {
     const start = Date.now();
     while (!this.auth.user()) {
@@ -125,11 +127,18 @@ export class AdminPage implements OnInit {
       return;
     }
 
-    await this.loadAll();
+    // ✅ Stream global de plantas (Subject + pipe)
+    this.plantsService
+      .plants$()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(list => this.plants.set(list));
+
+    // ✅ carga inicial
+    await this.refreshAll();
+
     this.loading.set(false);
   }
 
-  // ✅ Helpers (evitamos "as any" en HTML)
   ownerOf(p: Plant): string {
     return (p as any).owner_id ?? (p as any).ownerId ?? '-';
   }
@@ -138,11 +147,10 @@ export class AdminPage implements OnInit {
     return (p as any).photo_url ?? (p as any).photoUrl ?? null;
   }
 
-  async loadAll() {
+  async refreshAll() {
     this.error.set('');
     try {
-      const list = await this.plantsService.getAll();
-      this.plants.set(list);
+      await this.plantsService.refreshAll();
     } catch (e: any) {
       this.error.set(e?.message ?? String(e));
     }
@@ -178,8 +186,6 @@ export class AdminPage implements OnInit {
           photo_url: photoUrl,
         } as any);
       } else {
-        // OJO: create() crea para el usuario actual (admin)
-        // Si quieres crear PARA UN CLIENTE, usa createForOwner en otra pantalla.
         await this.plantsService.create({
           name: data.name,
           description: data.description,
@@ -190,7 +196,7 @@ export class AdminPage implements OnInit {
       }
 
       this.cancelEdit();
-      await this.loadAll();
+      // ❌ No hace falta refresh: el service ya emite al stream al crear/editar
     } catch (e: any) {
       this.error.set(e?.message ?? String(e));
     }
@@ -202,7 +208,7 @@ export class AdminPage implements OnInit {
     this.error.set('');
     try {
       await this.plantsService.delete(id);
-      await this.loadAll();
+      // ❌ No hace falta refresh: el service ya emite al stream al borrar
     } catch (e: any) {
       this.error.set(e?.message ?? String(e));
     }

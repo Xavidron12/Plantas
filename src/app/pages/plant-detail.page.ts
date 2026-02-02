@@ -1,16 +1,18 @@
 import {
-  AfterViewInit,
+  AfterViewChecked,
   Component,
+  DestroyRef,
   ElementRef,
+  OnDestroy,
+  OnInit,
   ViewChild,
   computed,
   inject,
   signal,
-  OnDestroy,
-  OnInit,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import Chart from 'chart.js/auto';
 
 import { PlantsService } from '../core/plants.service';
@@ -76,7 +78,11 @@ import { Plant } from '../models/plant.model';
         <div class="card mb-3">
           <div class="card-body">
             <h5 class="mb-3">Gráfica en tiempo real</h5>
-            <canvas #chartCanvas></canvas>
+
+            <!-- altura fija para evitar canvas “colapsado” -->
+            <div style="height: 260px;">
+              <canvas #chartCanvas style="display:block; width:100%; height:100%;"></canvas>
+            </div>
           </div>
         </div>
 
@@ -103,13 +109,16 @@ import { Plant } from '../models/plant.model';
     </div>
   `,
 })
-export class PlantDetailPage implements OnInit, AfterViewInit, OnDestroy {
+export class PlantDetailPage implements OnInit, AfterViewChecked, OnDestroy {
   private route = inject(ActivatedRoute);
   private plants = inject(PlantsService);
   private recordsService = inject(RecordsService);
   private favs = inject(FavoritesService);
+  private destroyRef = inject(DestroyRef);
 
-  @ViewChild('chartCanvas') chartCanvas!: ElementRef<HTMLCanvasElement>;
+  private plantId = this.route.snapshot.paramMap.get('id') ?? '';
+
+  @ViewChild('chartCanvas') chartCanvas?: ElementRef<HTMLCanvasElement>;
   private chart: Chart | null = null;
 
   plant = signal<Plant | null>(null);
@@ -130,18 +139,24 @@ export class PlantDetailPage implements OnInit, AfterViewInit, OnDestroy {
     return this.favIds().has(p.id);
   });
 
-  private plantId = '';
-  private sub: { unsubscribe: () => void } | null = null;
+  // ✅ para no inicializar 2 veces
+  private started = false;
 
   async ngOnInit() {
     this.error.set('');
+
     try {
-      this.plantId = this.route.snapshot.paramMap.get('id') ?? '';
+      if (!this.plantId) {
+        this.error.set('ID de planta inválido.');
+        return;
+      }
+
       const p = await this.plants.getById(this.plantId);
       if (!p) {
         this.error.set('Planta no encontrada.');
         return;
       }
+
       this.plant.set(p);
 
       const favs = await this.favs.getMyFavoritePlantIds();
@@ -151,37 +166,51 @@ export class PlantDetailPage implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  async ngAfterViewInit() {
-    this.initChart();
+  // ✅ clave: cuando el *ngIf pinta el canvas, aquí lo detectamos y arrancamos todo
+  ngAfterViewChecked() {
+    if (this.started) return;
+    if (!this.plant()) return;              // aún no se ha cargado la planta
+    if (!this.chartCanvas) return;          // aún no existe el canvas en DOM
 
-    // ✅ ahora sí: carga inicial + realtime (ya existe el canvas)
-    this.error.set('');
-    try {
-      const initial = await this.recordsService.getByPlant(this.plantId);
-      this.records.set(initial);
-      this.updateChart(initial);
-
-      this.sub = this.recordsService.watchPlant(this.plantId, (list) => {
-        this.records.set(list);
-        this.updateChart(list);
-      });
-    } catch (e: any) {
+    this.started = true;
+    this.setupChartAndRealtime().catch((e: any) => {
       this.error.set(e?.message ?? String(e));
-    }
+    });
   }
 
   ngOnDestroy() {
-    this.sub?.unsubscribe();
     if (this.plantId) {
       this.recordsService.stopRealtime(this.plantId);
       this.recordsService.stopMockInserts(this.plantId);
     }
     this.chart?.destroy();
+    this.chart = null;
+  }
+
+  private async setupChartAndRealtime() {
+    this.initChart();
+
+    // 1) stream
+    this.recordsService
+      .recordsByPlant$(this.plantId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(list => {
+        this.records.set(list);
+        this.updateChart(list);
+      });
+
+    // 2) carga inicial
+    await this.recordsService.refreshPlant(this.plantId);
+
+    // 3) realtime
+    this.recordsService.startRealtime(this.plantId);
   }
 
   private initChart() {
     const ctx = this.chartCanvas?.nativeElement.getContext('2d');
     if (!ctx) return;
+
+    this.chart?.destroy();
 
     this.chart = new Chart(ctx, {
       type: 'line',
@@ -194,6 +223,7 @@ export class PlantDetailPage implements OnInit, AfterViewInit, OnDestroy {
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         animation: false,
         scales: { y: { beginAtZero: true } },
       },
@@ -203,13 +233,14 @@ export class PlantDetailPage implements OnInit, AfterViewInit, OnDestroy {
   private updateChart(list: PlantRecord[]) {
     if (!this.chart) return;
 
-    const last = list.slice(-20);
+    const last = (list ?? []).slice(-20);
+
     const labels = last.map(r => {
       const d = new Date(r.createdAt);
-      return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d
-        .getSeconds()
+      return `${d.getHours().toString().padStart(2, '0')}:${d
+        .getMinutes()
         .toString()
-        .padStart(2, '0')}`;
+        .padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
     });
 
     this.chart.data.labels = labels;
