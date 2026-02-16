@@ -140,11 +140,11 @@ export class AdminPage implements OnInit {
   }
 
   ownerOf(p: Plant): string {
-    return (p as any).owner_id ?? (p as any).ownerId ?? '-';
+    return (p as any).ownerId ?? '-';
   }
 
   photoOf(p: Plant): string | null {
-    return (p as any).photo_url ?? (p as any).photoUrl ?? null;
+    return (p as any).photoUrl ?? null;
   }
 
   async refreshAll() {
@@ -183,7 +183,7 @@ export class AdminPage implements OnInit {
           description: data.description,
           lat: data.lat,
           lng: data.lng,
-          photo_url: photoUrl,
+          photoUrl: photoUrl,
         } as any);
       } else {
         await this.plantsService.create({
@@ -191,7 +191,7 @@ export class AdminPage implements OnInit {
           description: data.description,
           lat: data.lat,
           lng: data.lng,
-          photo_url: photoUrl,
+          photoUrl: photoUrl,
         });
       }
 

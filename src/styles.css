@@ -1,1 +1,605 @@
 @import "bootstrap/dist/css/bootstrap.min.css";
+
+/* ==============================
+   BASE
+   ============================== */
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+/* ==============================
+   THEME VARIABLES
+   ============================== */
+
+:root {
+  --bg: #edf0f4;
+  --surface: #ffffff;
+
+  --text: #111827;
+  --muted: #6b7280;
+
+  --border: rgba(17, 24, 39, 0.18);
+
+  --shadow: 0 30px 80px rgba(16, 24, 40, 0.22);
+  --shadow-soft: 0 20px 55px rgba(16, 24, 40, 0.18);
+
+  --btn-outline-bg-hover: rgba(17, 24, 39, 0.06);
+}
+
+body[data-theme="dark"] {
+  --bg: #050b18;
+  --surface: #0b1220;
+
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+
+  --border: rgba(255, 255, 255, 0.18);
+
+  --shadow: 0 35px 90px rgba(0, 0, 0, 0.75);
+  --shadow-soft: 0 25px 70px rgba(0, 0, 0, 0.65);
+
+  --btn-outline-bg-hover: rgba(255, 255, 255, 0.08);
+}
+
+/* ==============================
+   BODY
+   ============================== */
+
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+a { color: inherit; }
+hr { border-color: var(--border); }
+.text-muted { color: var(--muted) !important; }
+
+/* ==============================
+   ANGULAR MATERIAL
+   ============================== */
+
+mat-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+body[data-theme="dark"] mat-toolbar {
+  background: #020617 !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--border);
+}
+
+body[data-theme="dark"] mat-toolbar a,
+body[data-theme="dark"] mat-toolbar button,
+body[data-theme="dark"] mat-toolbar mat-icon {
+  color: var(--text) !important;
+}
+
+/* Cards Material */
+mat-card,
+.mat-mdc-card {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+
+  border-radius: 18px !important;
+  border: 2px solid var(--border) !important;
+
+  box-shadow: var(--shadow-soft) !important;
+}
+
+mat-card-content { padding-top: 14px; }
+
+/* Botones Material */
+button[mat-raised-button],
+button[mat-stroked-button],
+a[mat-stroked-button] {
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+}
+
+/* mat-stroked-button en dark (Nueva planta, Información, etc.) */
+body[data-theme="dark"] .mat-mdc-outlined-button,
+body[data-theme="dark"] a.mat-mdc-outlined-button,
+body[data-theme="dark"] button.mat-mdc-outlined-button {
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  color: var(--text) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+body[data-theme="dark"] .mat-mdc-outlined-button:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Disabled visible */
+body[data-theme="dark"] button.mat-mdc-raised-button:disabled {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: rgba(229, 231, 235, 0.6) !important;
+}
+
+body[data-theme="dark"] button.mat-mdc-raised-button:disabled .mdc-button__label {
+  color: rgba(229, 231, 235, 0.6) !important;
+}
+
+/* Formularios Material */
+mat-form-field { width: 100%; }
+mat-form-field .mat-mdc-text-field-wrapper { border-radius: 12px; }
+
+body[data-theme="dark"] .mat-mdc-card-subtitle {
+  color: rgba(229, 231, 235, 0.9) !important;
+}
+
+body[data-theme="dark"] .mat-mdc-floating-label {
+  color: rgba(156, 163, 175, 0.95) !important;
+}
+
+body[data-theme="dark"] .mat-mdc-input-element {
+  color: var(--text) !important;
+}
+
+body[data-theme="dark"] .mdc-notched-outline__leading,
+body[data-theme="dark"] .mdc-notched-outline__notch,
+body[data-theme="dark"] .mdc-notched-outline__trailing {
+  border-color: var(--border) !important;
+}
+
+body[data-theme="dark"] .mat-mdc-form-field-hint {
+  color: rgba(156, 163, 175, 0.95) !important;
+}
+
+body[data-theme="dark"] mat-error {
+  color: #ff6b6b !important;
+}
+
+/* ✅ FIX 1: Checkbox label en dark (“Solo favoritos”) */
+body[data-theme="dark"] .mdc-form-field > label,
+body[data-theme="dark"] .mat-mdc-checkbox label,
+body[data-theme="dark"] .mat-mdc-checkbox .mdc-label {
+  color: rgba(229, 231, 235, 0.92) !important;
+}
+
+/* ==============================
+   MAT-MENU (perfil/admin/logout)
+   ============================== */
+
+/* Panel del menú en dark */
+body[data-theme="dark"] .mat-mdc-menu-panel {
+  background: #0b1220 !important;
+  color: var(--text) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: var(--shadow);
+}
+
+/* Items y texto del menú */
+body[data-theme="dark"] .mat-mdc-menu-item,
+body[data-theme="dark"] .mat-mdc-menu-item .mdc-list-item__primary-text,
+body[data-theme="dark"] .mat-mdc-menu-item mat-icon {
+  color: var(--text) !important;
+}
+
+/* Hover menú */
+body[data-theme="dark"] .mat-mdc-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* El bloque superior de info (email/rol) dentro del menú */
+body[data-theme="dark"] .mat-mdc-menu-content div {
+  color: rgba(229, 231, 235, 0.92) !important;
+}
+
+/* ==============================
+   BOOTSTRAP (ADMIN/CRUD)
+   ============================== */
+
+.container { max-width: 1200px; }
+
+/* Cards Bootstrap */
+.card {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-radius: 18px !important;
+  border: 2px solid var(--border) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.shadow-sm { box-shadow: var(--shadow) !important; }
+
+/* Inputs Bootstrap */
+.form-control,
+.form-select,
+textarea,
+input {
+  border-radius: 12px !important;
+}
+
+body[data-theme="dark"] .form-control,
+body[data-theme="dark"] .form-select,
+body[data-theme="dark"] textarea,
+body[data-theme="dark"] input {
+  background: #020617 !important;
+  color: var(--text) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+body[data-theme="dark"] .form-control::placeholder {
+  color: var(--muted) !important;
+}
+
+/* Botones Bootstrap */
+.btn {
+  border-radius: 12px !important;
+  font-weight: 600;
+  text-transform: none;
+}
+
+body[data-theme="dark"] .btn-outline-primary,
+body[data-theme="dark"] .btn-outline-secondary {
+  color: var(--text) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+body[data-theme="dark"] .btn-outline-primary:hover,
+body[data-theme="dark"] .btn-outline-secondary:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+body[data-theme="dark"] .btn-outline-danger {
+  color: #ff6b6b !important;
+  border-color: rgba(255, 107, 107, 0.8) !important;
+  background: rgba(255, 107, 107, 0.08) !important;
+}
+
+body[data-theme="dark"] .btn-outline-danger:hover {
+  background: rgba(255, 107, 107, 0.16) !important;
+}
+
+/* ==============================
+   TABLES (CRUD)
+   ============================== */
+
+.table {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 2px solid var(--border) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+body[data-theme="dark"] .table {
+  background: #0b1220 !important;
+  color: var(--text) !important;
+  border-color: rgba(255, 255, 255, 0.20) !important;
+}
+
+body[data-theme="dark"] .table thead th {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--text) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+body[data-theme="dark"] .table tbody td,
+body[data-theme="dark"] .table tbody th {
+  background: transparent !important;
+  color: var(--text) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+body[data-theme="dark"] .table tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.03) !important;
+}
+
+/* ==============================
+   ALERTS
+   ============================== */
+
+.alert {
+  border-radius: 14px;
+  border: 2px solid var(--border);
+  box-shadow: var(--shadow-soft);
+}
+
+body[data-theme="dark"] .alert {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--text) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+/* ==============================
+   ✅ FIX 2: textos “pequeños” sueltos en dark
+   (ej: “Se sube a Supabase Storage.”)
+   ============================== */
+
+body[data-theme="dark"] small,
+body[data-theme="dark"] .form-text,
+body[data-theme="dark"] .text-secondary,
+body[data-theme="dark"] .text-muted {
+  color: rgba(156, 163, 175, 0.95) !important;
+}
+
+/* ==============================
+   AUTH SCENE (LOGIN / REGISTER)
+   ============================== */
+
+.app-route-stage {
+  position: relative;
+  min-height: calc(100vh - 65px);
+}
+
+.app-route-stage--main {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 8% 12%, rgba(255, 205, 84, 0.2), transparent 28%),
+    radial-gradient(circle at 86% 9%, rgba(76, 178, 255, 0.16), transparent 24%),
+    linear-gradient(180deg, #f8fbf5 0%, #edf4e8 52%, #e4eedf 100%);
+}
+
+.app-route-stage--main::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(116deg, rgba(15, 23, 42, 0.032) 0 1px, transparent 1px 30px),
+    linear-gradient(26deg, rgba(15, 23, 42, 0.022) 0 1px, transparent 1px 30px);
+  opacity: 0.7;
+}
+
+.app-route-stage--main > * {
+  position: relative;
+  z-index: 1;
+}
+
+body[data-theme="dark"] .app-route-stage--main {
+  background:
+    radial-gradient(circle at 8% 12%, rgba(255, 186, 52, 0.08), transparent 30%),
+    radial-gradient(circle at 86% 9%, rgba(78, 165, 255, 0.09), transparent 26%),
+    linear-gradient(180deg, #071222 0%, #0c1f35 52%, #132a2f 100%);
+}
+
+body[data-theme="dark"] .app-route-stage--main::before {
+  background:
+    linear-gradient(116deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 30px),
+    linear-gradient(26deg, rgba(255, 255, 255, 0.028) 0 1px, transparent 1px 30px);
+  opacity: 0.55;
+}
+
+.auth-sunflower-page {
+  position: relative;
+  min-height: calc(100vh - 65px);
+  padding: clamp(20px, 4vw, 38px) 16px 140px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 8% 8%, rgba(255, 224, 112, 0.45), transparent 28%),
+    radial-gradient(circle at 88% 14%, rgba(255, 204, 94, 0.35), transparent 24%),
+    linear-gradient(180deg, #fffceb 0%, #f2f8e6 52%, #ddf0c9 100%);
+}
+
+.auth-sunflower-page::before {
+  content: "";
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: 100px;
+  height: 140px;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 70%);
+}
+
+.auth-sunflower-card-wrap {
+  position: relative;
+  z-index: 4;
+  width: min(100%, 520px);
+}
+
+.auth-sunflower-card-wrap--wide {
+  width: min(100%, 560px);
+}
+
+.auth-sunflower-card {
+  backdrop-filter: blur(2px);
+}
+
+.sunflower-bloom {
+  position: absolute;
+  z-index: 1;
+  width: 172px;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0.95;
+  background:
+    radial-gradient(circle at center, #4f2f04 0 22%, #714509 23% 33%, transparent 34%),
+    repeating-conic-gradient(from 0deg, #ffbe2d 0 13deg, #ffd969 13deg 19deg);
+  box-shadow: 0 18px 26px rgba(82, 56, 6, 0.26);
+}
+
+.sunflower-bloom--peek-left {
+  top: 96px;
+  left: -86px;
+  transform: rotate(-16deg);
+}
+
+.sunflower-bloom--peek-right {
+  top: 44px;
+  right: -74px;
+  width: 150px;
+  transform: rotate(14deg);
+}
+
+.sunflower-garden {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 136px;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(83, 151, 65, 0) 0%, rgba(75, 141, 58, 0.32) 42%, rgba(53, 111, 41, 0.68) 100%);
+}
+
+.sunflower-stalk {
+  position: absolute;
+  bottom: 0;
+  width: 10px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #78b645 0%, #4f9838 55%, #367029 100%);
+}
+
+.sunflower-stalk::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -30px;
+  width: 46px;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at center, #4f2f04 0 24%, #75480c 25% 34%, transparent 35%),
+    repeating-conic-gradient(from 0deg, #ffbe2d 0 12deg, #ffd968 12deg 18deg);
+  box-shadow: 0 7px 12px rgba(0, 0, 0, 0.24);
+}
+
+.sunflower-stalk::after {
+  content: "";
+  position: absolute;
+  top: 44%;
+  left: -18px;
+  width: 28px;
+  height: 16px;
+  border-radius: 100% 0 100% 0;
+  background: linear-gradient(135deg, #4f973f, #3e7f34);
+  transform: rotate(-22deg);
+}
+
+.sunflower-stalk--1 {
+  left: 4%;
+  height: 70px;
+  transform: rotate(-4deg);
+}
+
+.sunflower-stalk--2 {
+  left: 17%;
+  height: 96px;
+  transform: rotate(2deg);
+}
+
+.sunflower-stalk--3 {
+  left: 33%;
+  height: 80px;
+  transform: rotate(-1deg);
+}
+
+.sunflower-stalk--4 {
+  left: 56%;
+  height: 104px;
+  transform: rotate(1deg);
+}
+
+.sunflower-stalk--5 {
+  left: 74%;
+  height: 84px;
+  transform: rotate(-3deg);
+}
+
+.sunflower-stalk--6 {
+  left: 89%;
+  height: 94px;
+  transform: rotate(3deg);
+}
+
+.sunflower-stalk--1::before,
+.sunflower-stalk--3::before,
+.sunflower-stalk--5::before {
+  width: 40px;
+  top: -26px;
+}
+
+body[data-theme="dark"] .auth-sunflower-page {
+  background:
+    radial-gradient(circle at 8% 8%, rgba(255, 196, 74, 0.16), transparent 30%),
+    radial-gradient(circle at 88% 14%, rgba(255, 181, 55, 0.13), transparent 26%),
+    linear-gradient(180deg, #06111f 0%, #112237 52%, #173925 100%);
+}
+
+body[data-theme="dark"] .auth-sunflower-page::before {
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 70%);
+}
+
+body[data-theme="dark"] .sunflower-bloom,
+body[data-theme="dark"] .sunflower-stalk::before {
+  background:
+    radial-gradient(circle at center, #2f1902 0 24%, #4d2c05 25% 34%, transparent 35%),
+    repeating-conic-gradient(from 0deg, #e19d1f 0 12deg, #efbf4b 12deg 18deg);
+}
+
+body[data-theme="dark"] .sunflower-garden {
+  background: linear-gradient(180deg, rgba(77, 138, 64, 0) 0%, rgba(58, 113, 54, 0.3) 45%, rgba(34, 79, 35, 0.72) 100%);
+}
+
+@media (max-width: 640px) {
+  .auth-sunflower-page {
+    padding-top: 20px;
+    padding-bottom: 128px;
+    align-items: flex-start;
+  }
+
+  .sunflower-bloom--peek-left {
+    top: 140px;
+    left: -95px;
+    width: 150px;
+  }
+
+  .sunflower-bloom--peek-right {
+    top: 88px;
+    right: -86px;
+    width: 132px;
+  }
+
+  .sunflower-garden {
+    height: 120px;
+  }
+
+  .sunflower-stalk--1 {
+    left: 3%;
+    height: 62px;
+  }
+
+  .sunflower-stalk--2 {
+    left: 20%;
+    height: 88px;
+  }
+
+  .sunflower-stalk--3 {
+    left: 37%;
+    height: 74px;
+  }
+
+  .sunflower-stalk--4 {
+    left: 54%;
+    height: 90px;
+  }
+
+  .sunflower-stalk--5 {
+    left: 72%;
+    height: 72px;
+  }
+
+  .sunflower-stalk--6 {
+    left: 90%;
+    height: 84px;
+  }
+}

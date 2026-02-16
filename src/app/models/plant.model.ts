@@ -2,9 +2,9 @@ export interface Plant {
   id: string;         // uuid
   ownerId: string;    // uuid
   name: string;
-  description?: string;
+  description?: string | null;
   lat: number;
   lng: number;
-  photoUrl?: string;
+  photoUrl?: string | null;
   createdAt: string;
 }

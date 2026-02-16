@@ -1,121 +1,112 @@
 import { Component, computed, inject, signal, OnInit, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, NgForm } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { PlantsService } from '../core/plants.service';
 import { FavoritesService } from '../core/favorites.service';
 import { AuthService } from '../core/auth.service';
 import { Plant } from '../models/plant.model';
+import { PlantCardComponent } from '../components/plant-card.component';
+import { PlantFormComponent } from '../components/plant-form.component';
+
+import { MATERIAL } from '../shared/material';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, PlantCardComponent, PlantFormComponent, ...MATERIAL, MatCheckboxModule],
   template: `
-    <div class="container">
-      <div class="d-flex justify-content-between align-items-center mb-3">
+    <div style="max-width:1200px; margin:0 auto; padding:24px;">
+      <!-- Header -->
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px;">
         <div>
-          <h2 class="mb-0">Mis plantas</h2>
-          <div class="text-muted">Listado de tus plantas (con favoritos)</div>
+          <h2 style="margin:0;">Mis plantas</h2>
+          <div style="opacity:0.75;">Listado de tus plantas (con favoritos)</div>
         </div>
+
+        <button mat-raised-button color="primary" type="button" (click)="openCreate()" *ngIf="!showForm()">
+          Nueva planta
+        </button>
       </div>
 
-      <div class="alert alert-info" *ngIf="loading()">Cargando...</div>
+      <!-- Loading -->
+      <mat-card *ngIf="loading()" style="margin-bottom:16px;">
+        <mat-card-content>Cargando...</mat-card-content>
+      </mat-card>
 
-      <div class="card mb-3" *ngIf="!loading()">
-        <div class="card-body">
-          <form #f="ngForm" class="d-grid gap-2" (ngSubmit)="$event.preventDefault()">
-            <div>
-              <label class="form-label mb-2">Buscar</label>
+      <!-- Error -->
+      <mat-card *ngIf="error()" style="margin-bottom:16px; border:1px solid #b00020;">
+        <mat-card-content>
+          <mat-error>{{ error() }}</mat-error>
+        </mat-card-content>
+      </mat-card>
 
+      <!-- FORM NUEVA PLANTA -->
+      <div style="margin-bottom:16px;" *ngIf="!loading() && showForm()">
+        <app-plant-form
+          [initial]="null"
+          (save)="createFromForm($event)"
+          (cancel)="closeCreate()"
+        />
+      </div>
+
+      <!-- BUSCADOR / FILTROS -->
+      <mat-card style="margin-bottom:16px;" *ngIf="!loading() && !showForm()">
+        <mat-card-content>
+          <form #f="ngForm" (ngSubmit)="$event.preventDefault()" style="display:grid; gap:12px;">
+            <mat-form-field appearance="outline">
+              <mat-label>Buscar</mat-label>
               <input
-                class="form-control"
+                matInput
                 name="term"
                 [ngModel]="term()"
                 (ngModelChange)="term.set($event)"
                 placeholder="Buscar planta..."
                 minlength="2"
               />
+              <mat-hint>Escribe al menos 2 caracteres para buscar (o deja vacío para ver todas).</mat-hint>
 
-              <div class="form-text">Escribe al menos 2 caracteres para buscar (o deja vacío para ver todas).</div>
-
-              <div class="text-danger small mt-1" *ngIf="f.controls['term']?.touched && f.controls['term']?.invalid">
+              <div style="font-size:12px; margin-top:6px; color:#b00020;"
+                   *ngIf="f.controls['term']?.touched && f.controls['term']?.invalid">
                 El texto de búsqueda debe tener al menos 2 caracteres.
               </div>
-            </div>
+            </mat-form-field>
 
-            <div class="form-check mt-2">
-              <input
-                class="form-check-input"
-                type="checkbox"
-                id="onlyFavs"
-                name="onlyFavs"
-                [ngModel]="onlyFavs()"
-                (ngModelChange)="onlyFavs.set($event)"
-              />
-              <label class="form-check-label" for="onlyFavs">Solo favoritos</label>
-            </div>
+            <mat-checkbox
+              name="onlyFavs"
+              [ngModel]="onlyFavs()"
+              (ngModelChange)="onlyFavs.set($event)"
+            >
+              Solo favoritos
+            </mat-checkbox>
 
-            <div class="mt-2">
-              <button class="btn btn-sm btn-outline-primary" type="button" (click)="refresh()">
+            <div>
+              <button mat-stroked-button type="button" (click)="refresh()">
                 Recargar
               </button>
             </div>
           </form>
-        </div>
-      </div>
+        </mat-card-content>
+      </mat-card>
 
-      <div class="alert alert-danger" *ngIf="error()">{{ error() }}</div>
+      <!-- Empty -->
+      <mat-card *ngIf="!loading() && !error() && !showForm() && filteredPlants().length === 0">
+        <mat-card-content>No hay plantas para mostrar.</mat-card-content>
+      </mat-card>
 
-      <div class="alert alert-warning" *ngIf="!loading() && !error() && filteredPlants().length === 0">
-        No hay plantas para mostrar.
-      </div>
-
-      <div class="row g-3" *ngIf="!loading() && !error() && filteredPlants().length > 0">
-        <div class="col-12 col-md-6 col-lg-4" *ngFor="let p of filteredPlants()">
-          <div class="card h-100 shadow-sm">
-            <div class="ratio ratio-16x9 bg-light" *ngIf="photoUrlOf(p); else noPhoto">
-              <img
-                [src]="photoUrlOf(p)!"
-                class="w-100 h-100"
-                style="object-fit: cover;"
-                alt="Foto planta"
-              />
-            </div>
-
-            <ng-template #noPhoto>
-              <div class="ratio ratio-16x9 bg-light d-flex align-items-center justify-content-center text-muted">
-                Sin foto
-              </div>
-            </ng-template>
-
-            <div class="card-body d-flex flex-column">
-              <div class="d-flex justify-content-between align-items-start gap-2">
-                <h5 class="mb-1">{{ p.name }}</h5>
-
-                <button
-                  type="button"
-                  class="btn btn-sm"
-                  [class.btn-outline-danger]="!isFav(p.id)"
-                  [class.btn-danger]="isFav(p.id)"
-                  (click)="toggleFav(p.id)"
-                  title="Favorito"
-                >
-                  {{ isFav(p.id) ? '♥' : '♡' }}
-                </button>
-              </div>
-
-              <p class="text-muted mb-3" [title]="p.description || ''">
-                {{ shortDesc(p.description || '') }}
-              </p>
-
-              <div class="mt-auto d-flex justify-content-end">
-                <a class="btn btn-outline-primary btn-sm" [routerLink]="['/plants', p.id]">Información</a>
-              </div>
-            </div>
-          </div>
-        </div>
+      <!-- Grid -->
+      <div
+        style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;"
+        *ngIf="!loading() && !error() && !showForm() && filteredPlants().length > 0"
+      >
+        <app-plant-card
+          *ngFor="let p of filteredPlants()"
+          [plant]="p"
+          [photoUrl]="photoUrlOf(p)"
+          [isFav]="isFav(p.id)"
+          (toggleFav)="toggleFav($event)"
+        />
       </div>
     </div>
   `,
@@ -135,6 +126,7 @@ export class PlantsPage implements OnInit {
   plants = signal<Plant[]>([]);
   favIds = signal<Set<string>>(new Set());
 
+  showForm = signal(false);
   private ownerId = '';
 
   filteredPlants = computed(() => {
@@ -180,22 +172,60 @@ export class PlantsPage implements OnInit {
 
       this.ownerId = user.id;
 
-      // favoritos
       const favs = await this.favsService.getMyFavoritePlantIds();
       this.favIds.set(favs);
 
-      // ✅ Stream del servicio (Subject + pipe)
       this.plantsService
         .plantsByOwner$(this.ownerId)
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe(list => this.plants.set(list));
 
-      // ✅ carga inicial
       await this.plantsService.refreshByOwner(this.ownerId);
     } catch (e: any) {
       this.error.set(e?.message ?? String(e));
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  openCreate() {
+    this.error.set('');
+    this.showForm.set(true);
+  }
+
+  closeCreate() {
+    this.showForm.set(false);
+  }
+
+  async createFromForm(payload: {
+    name: string;
+    description: string;
+    lat: number;
+    lng: number;
+    photoFile: File | null;
+  }) {
+    if (!this.ownerId) return;
+
+    this.error.set('');
+    try {
+      let photoUrl: string | null = null;
+
+      if (payload.photoFile) {
+        photoUrl = await this.plantsService.uploadPlantPhoto(payload.photoFile);
+      }
+
+      await this.plantsService.create({
+        name: payload.name,
+        description: payload.description,
+        lat: payload.lat,
+        lng: payload.lng,
+        photoUrl,
+      });
+
+      await this.plantsService.refreshByOwner(this.ownerId);
+      this.showForm.set(false);
+    } catch (e: any) {
+      this.error.set(e?.message ?? String(e));
     }
   }
 
@@ -210,13 +240,7 @@ export class PlantsPage implements OnInit {
   }
 
   photoUrlOf(p: Plant): string | null {
-    return (p as any).photo_url ?? (p as any).photoUrl ?? null;
-  }
-
-  shortDesc(desc: string): string {
-    const s = desc.trim();
-    if (!s) return '—';
-    return s.length > 70 ? s.slice(0, 70) + '…' : s;
+    return p.photoUrl ?? null;
   }
 
   isFav(plantId: string): boolean {

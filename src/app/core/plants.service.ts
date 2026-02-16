@@ -1,7 +1,18 @@
 import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, Observable, distinctUntilChanged, map } from 'rxjs';
+import { BehaviorSubject, Observable, distinctUntilChanged } from 'rxjs';
 import { SupabaseService } from '../services/supabase.service';
 import { Plant } from '../models/plant.model';
+
+type PlantRow = {
+  id: string;
+  owner_id: string | null;
+  name: string;
+  description: string | null;
+  lat: number | null;
+  lng: number | null;
+  photo_url: string | null;
+  created_at: string | null;
+};
 
 function sameList(a: Plant[], b: Plant[]) {
   if (a === b) return true;
@@ -18,10 +29,7 @@ export class PlantsService {
 
   private readonly BUCKET = 'plant-photos';
 
-  // ✅ Stream global (admin)
   private all$ = new BehaviorSubject<Plant[]>([]);
-
-  // ✅ Streams por owner (cliente)
   private byOwner = new Map<string, BehaviorSubject<Plant[]>>();
 
   plants$(): Observable<Plant[]> {
@@ -42,6 +50,42 @@ export class PlantsService {
   }
 
   // -----------------------------
+  // MAPPERS (DB <-> MODEL)
+  // -----------------------------
+
+  private toPlant(row: PlantRow): Plant {
+    return {
+      id: row.id,
+      ownerId: row.owner_id,
+      name: row.name,
+      description: row.description,
+      lat: row.lat,
+      lng: row.lng,
+      photoUrl: row.photo_url,
+      createdAt: row.created_at,
+    } as Plant;
+  }
+
+  private toRow(partial: {
+    name?: string;
+    description?: string | null;
+    lat?: number | null;
+    lng?: number | null;
+    photoUrl?: string | null;
+  }): Record<string, any> {
+    const p = partial ?? {};
+    const row: any = {};
+
+    if ('name' in p) row.name = p.name;
+    if ('description' in p) row.description = p.description ?? null;
+    if ('lat' in p) row.lat = p.lat;
+    if ('lng' in p) row.lng = p.lng;
+    if ('photoUrl' in p) row.photo_url = p.photoUrl ?? null;
+
+    return row;
+  }
+
+  // -----------------------------
   // READ (DB)
   // -----------------------------
 
@@ -52,7 +96,8 @@ export class PlantsService {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return (data ?? []) as Plant[];
+
+    return ((data ?? []) as PlantRow[]).map(r => this.toPlant(r));
   }
 
   async getByOwner(ownerId: string): Promise<Plant[]> {
@@ -63,7 +108,8 @@ export class PlantsService {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return (data ?? []) as Plant[];
+
+    return ((data ?? []) as PlantRow[]).map(r => this.toPlant(r));
   }
 
   async getById(id: string): Promise<Plant | null> {
@@ -74,11 +120,12 @@ export class PlantsService {
       .maybeSingle();
 
     if (error) throw error;
-    return (data ?? null) as Plant | null;
+
+    return data ? this.toPlant(data as PlantRow) : null;
   }
 
   // -----------------------------
-  // REFRESH (emite a Observables)
+  // REFRESH
   // -----------------------------
 
   async refreshAll(): Promise<void> {
@@ -92,16 +139,15 @@ export class PlantsService {
   }
 
   // -----------------------------
-  // MUTATIONS (DB + stream update)
+  // MUTATIONS
   // -----------------------------
 
-  // ✅ CREA PARA EL USUARIO LOGUEADO (owner_id obligatorio)
   async create(data: {
     name: string;
     description?: string;
     lat: number;
     lng: number;
-    photo_url?: string | null;
+    photoUrl?: string | null;
   }): Promise<Plant> {
     const { data: authData, error: authErr } = await this.sb.supabase.auth.getUser();
     if (authErr) throw authErr;
@@ -109,7 +155,7 @@ export class PlantsService {
     const userId = authData.user?.id;
     if (!userId) throw new Error('No hay usuario logueado');
 
-    const payload = { ...data, owner_id: userId };
+    const payload = { ...this.toRow(data), owner_id: userId };
 
     const { data: created, error } = await this.sb.supabase
       .from('plants')
@@ -119,7 +165,7 @@ export class PlantsService {
 
     if (error) throw error;
 
-    const plant = created as Plant;
+    const plant = this.toPlant(created as PlantRow);
     this.emitCreated(plant);
     return plant;
   }
@@ -131,10 +177,10 @@ export class PlantsService {
       description?: string;
       lat: number;
       lng: number;
-      photo_url?: string | null;
+      photoUrl?: string | null;
     }
   ): Promise<Plant> {
-    const payload = { ...data, owner_id: ownerId };
+    const payload = { ...this.toRow(data), owner_id: ownerId };
 
     const { data: created, error } = await this.sb.supabase
       .from('plants')
@@ -144,33 +190,44 @@ export class PlantsService {
 
     if (error) throw error;
 
-    const plant = created as Plant;
+    const plant = this.toPlant(created as PlantRow);
     this.emitCreated(plant);
     return plant;
   }
 
   async update(id: string, data: Partial<Plant>): Promise<Plant> {
+    const payload = this.toRow({
+      name: (data as any).name,
+      description: (data as any).description,
+      lat: (data as any).lat,
+      lng: (data as any).lng,
+      photoUrl: (data as any).photoUrl,
+    });
+
     const { data: updated, error } = await this.sb.supabase
       .from('plants')
-      .update(data)
+      .update(payload)
       .eq('id', id)
       .select('*')
       .single();
 
     if (error) throw error;
 
-    const plant = updated as Plant;
+    const plant = this.toPlant(updated as PlantRow);
     this.emitUpdated(plant);
     return plant;
   }
 
   async delete(id: string): Promise<void> {
-    // Para poder actualizar streams sin recargar, intentamos saber el owner del registro a borrar.
-    // Si no podemos leerlo por RLS, igual borrará y luego podrás hacer refresh manual si hiciera falta.
     let ownerId: string | null = null;
     try {
-      const { data } = await this.sb.supabase.from('plants').select('owner_id').eq('id', id).maybeSingle();
-      ownerId = (data as any)?.owner_id ?? null;
+      const { data } = await this.sb.supabase
+        .from('plants')
+        .select('owner_id')
+        .eq('id', id)
+        .maybeSingle();
+
+      ownerId = (data as { owner_id: string | null } | null)?.owner_id ?? null;
     } catch {}
 
     const { error } = await this.sb.supabase.from('plants').delete().eq('id', id);
@@ -203,12 +260,10 @@ export class PlantsService {
   // -----------------------------
 
   private emitCreated(p: Plant) {
-    const ownerId = (p as any).owner_id ?? (p as any).ownerId ?? null;
+    const ownerId = p.ownerId ?? null;
 
-    // all$
     this.all$.next([p, ...this.all$.value]);
 
-    // byOwner
     if (ownerId) {
       const s = this.ownerSubject(ownerId);
       s.next([p, ...s.value]);
@@ -216,23 +271,19 @@ export class PlantsService {
   }
 
   private emitUpdated(p: Plant) {
-    const ownerId = (p as any).owner_id ?? (p as any).ownerId ?? null;
+    const ownerId = p.ownerId ?? null;
 
-    // all$
     this.all$.next(this.all$.value.map(x => (x.id === p.id ? p : x)));
 
-    // byOwner: actualiza en TODOS los subjects por si cambió owner (raro, pero por si acaso)
     for (const [oid, s] of this.byOwner.entries()) {
       const exists = s.value.some(x => x.id === p.id);
       if (exists) {
-        // si pertenece a este owner, actualiza; si no, quítalo
         if (ownerId && oid === ownerId) {
           s.next(s.value.map(x => (x.id === p.id ? p : x)));
         } else {
           s.next(s.value.filter(x => x.id !== p.id));
         }
       } else {
-        // si no estaba y ahora pertenece a este owner, lo añadimos
         if (ownerId && oid === ownerId) {
           s.next([p, ...s.value]);
         }
@@ -247,7 +298,6 @@ export class PlantsService {
       const s = this.byOwner.get(ownerId);
       if (s) s.next(s.value.filter(x => x.id !== id));
     } else {
-      // si no sabemos owner, lo quitamos de todos los subjects (seguro)
       for (const s of this.byOwner.values()) {
         s.next(s.value.filter(x => x.id !== id));
       }

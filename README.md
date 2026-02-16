@@ -1,59 +1,59 @@
-# MyApp
+# 🌞 Plantas Solares
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.1.0.
+Aplicación web desarrollada con **Angular** para la gestión de plantas solares, con autenticación y base de datos en **Supabase**.  
+Permite a los usuarios crear, visualizar y gestionar sus propias plantas, y a los administradores supervisar todas las plantas del sistema mediante un mapa interactivo.
 
-## Development server
+---
 
-To start a local development server, run:
+## 🚀 Tecnologías utilizadas
 
-```bash
-ng serve
-```
+- **Angular (standalone + signals)**
+- **TypeScript**
+- **Angular Material**
+- **Bootstrap**
+- **Supabase**
+  - Auth (login / registro)
+  - Base de datos PostgreSQL
+  - Storage (imágenes)
+  - Realtime
+  - Row Level Security (RLS)
+- **Leaflet** (mapa interactivo)
+- **Chart.js** (gráficas de registros)
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+---
 
-## Code scaffolding
+## 🔐 Roles de usuario
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+### 👤 Usuario normal
+- Registro e inicio de sesión
+- Crear, editar y eliminar **sus propias plantas**
+- Visualizar sus plantas en listado y en mapa
+- Marcar plantas como favoritas
+- Visualizar registros en tiempo real
 
-```bash
-ng generate component component-name
-```
+### 🛠️ Administrador
+- Acceso a todas las plantas del sistema
+- Visualización global en el mapa
+- CRUD completo de plantas
+- Acceso al panel de administración
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+---
 
-```bash
-ng generate --help
-```
+## 🧩 Funcionalidades principales
 
-## Building
+- Autenticación segura con Supabase
+- Control de acceso mediante **RLS**
+- CRUD completo de plantas
+- Subida de imágenes a Supabase Storage
+- Mapa interactivo con Leaflet
+- Favoritos por usuario
+- Registros en tiempo real (realtime)
+- Gráficas con Chart.js
+- Formularios reactivos y con signals
+- Tema claro / oscuro
+- Componentización reutilizable
 
-To build the project run:
+---
 
-```bash
-ng build
-```
+## 📁 Estructura del proyecto
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.

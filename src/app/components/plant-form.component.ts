@@ -207,7 +207,7 @@ export class PlantFormComponent {
 
     this.photoFile.set(null);
     this.clearPreview();
-    this.currentPhotoUrl.set((p as any).photo_url ?? (p as any).photoUrl ?? null);
+    this.currentPhotoUrl.set((p as any).photoUrl ?? null);
 
     this.touched.set({ name: false, lat: false, lng: false });
     this.error.set('');

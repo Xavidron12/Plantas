@@ -2,6 +2,10 @@ import { Injectable } from '@angular/core';
 import { SupabaseService } from '../services/supabase.service';
 import { AuthService } from './auth.service';
 
+type FavoriteRow = {
+  plant_id: string;
+};
+
 @Injectable({ providedIn: 'root' })
 export class FavoritesService {
   constructor(private sb: SupabaseService, private auth: AuthService) {}
@@ -20,7 +24,8 @@ export class FavoritesService {
       return new Set();
     }
 
-    return new Set((data ?? []).map((x: any) => x.plant_id as string));
+    const rows = (data ?? []) as FavoriteRow[];
+    return new Set(rows.map(x => x.plant_id));
   }
 
   async add(plantId: string): Promise<void> {
