@@ -1,5 +1,6 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { SupabaseService } from '../services/supabase.service';
+import { AppStoreService } from './store/app-store.service';
 
 export type UserRole = 'admin' | 'client';
 
@@ -13,15 +14,23 @@ export interface AppUser {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private _user = signal<AppUser | null>(null);
+  private _ready = signal(false);
 
   user = computed(() => this._user());
   isLoggedIn = computed(() => this._user() !== null);
   isAdmin = computed(() => this._user()?.role === 'admin');
+  ready = computed(() => this._ready());
 
-  constructor(private sb: SupabaseService) {
-    this.loadSession();
+  constructor(private sb: SupabaseService, private store: AppStoreService) {
+    void this.loadSession().finally(() => {
+      this._ready.set(true);
+      this.store.dispatch({ type: 'auth/setReady', payload: { ready: true } });
+    });
     this.sb.supabase.auth.onAuthStateChange(() => {
-      this.loadSession();
+      void this.loadSession().finally(() => {
+        this._ready.set(true);
+        this.store.dispatch({ type: 'auth/setReady', payload: { ready: true } });
+      });
     });
   }
 
@@ -31,19 +40,20 @@ export class AuthService {
 
     if (!sessionUser) {
       this._user.set(null);
+      this.store.dispatch({ type: 'auth/clearSession' });
       return;
     }
 
     const email = sessionUser.email ?? '';
 
-    // 👇 LEEMOS SIEMPRE EL ROL DESDE public.profiles
+    // El rol se lee de public.profiles para que siempre sea el vigente.
     const { data: profile, error } = await this.sb.supabase
       .from('profiles')
       .select('name, role')
       .eq('id', sessionUser.id)
       .maybeSingle();
 
-    // Si falla la lectura por RLS o cualquier cosa, al menos no rompemos
+    // Si falla esta lectura, seguimos con valores por defecto para no romper sesión.
     const dbName = profile?.name as string | undefined;
     const dbRole = profile?.role as UserRole | undefined;
 
@@ -61,6 +71,18 @@ export class AuthService {
       name,
       role,
     });
+
+    this.store.dispatch({
+      type: 'auth/setSession',
+      payload: { userId: sessionUser.id, role },
+    });
+  }
+
+  async ensureSession(): Promise<AppUser | null> {
+    await this.loadSession();
+    this._ready.set(true);
+    this.store.dispatch({ type: 'auth/setReady', payload: { ready: true } });
+    return this._user();
   }
 
   async login(email: string, password: string) {
@@ -91,6 +113,7 @@ export class AuthService {
   async logout() {
     await this.sb.supabase.auth.signOut();
     this._user.set(null);
+    this.store.dispatch({ type: 'auth/clearSession' });
   }
 
   async updateProfile(name: string) {

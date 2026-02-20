@@ -2,14 +2,12 @@ import { CommonModule } from '@angular/common';
 import {
   AfterViewInit,
   Component,
-  DestroyRef,
   ElementRef,
-  Input,
   OnDestroy,
   ViewChild,
-  inject,
+  effect,
+  input,
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import Chart from 'chart.js/auto';
 
 import { PlantRecord } from '../core/records.service';
@@ -31,27 +29,20 @@ import { PlantRecord } from '../core/records.service';
   `,
 })
 export class RecordsChartComponent implements AfterViewInit, OnDestroy {
-  private destroyRef = inject(DestroyRef);
-
-  @Input() set records(value: PlantRecord[]) {
-    this._records = value ?? [];
-    this.updateChart(this._records);
-  }
-  get records() {
-    return this._records;
-  }
-  private _records: PlantRecord[] = [];
+  records = input<PlantRecord[]>([]);
 
   @ViewChild('chartCanvas') chartCanvas?: ElementRef<HTMLCanvasElement>;
   private chart: Chart | null = null;
 
+  constructor() {
+    effect(() => {
+      this.updateChart(this.records() ?? []);
+    });
+  }
+
   ngAfterViewInit() {
     this.initChart();
-    this.updateChart(this._records);
-
-    // Por si el input llega después del init, el setter ya llama updateChart()
-    // Este takeUntilDestroyed aquí es por si en el futuro lo amplías.
-    takeUntilDestroyed(this.destroyRef);
+    this.updateChart(this.records() ?? []);
   }
 
   ngOnDestroy() {

@@ -157,7 +157,7 @@ body[data-theme="dark"] mat-error {
   color: #ff6b6b !important;
 }
 
-/* ✅ FIX 1: Checkbox label en dark (“Solo favoritos”) */
+/* Ajuste del texto del checkbox en modo oscuro ("Solo favoritos") */
 body[data-theme="dark"] .mdc-form-field > label,
 body[data-theme="dark"] .mat-mdc-checkbox label,
 body[data-theme="dark"] .mat-mdc-checkbox .mdc-label {
@@ -313,8 +313,8 @@ body[data-theme="dark"] .alert {
 }
 
 /* ==============================
-   ✅ FIX 2: textos “pequeños” sueltos en dark
-   (ej: “Se sube a Supabase Storage.”)
+   Ajuste de textos pequeños en modo oscuro
+   (ej: "Se sube a Supabase Storage.")
    ============================== */
 
 body[data-theme="dark"] small,

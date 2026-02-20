@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { Plant } from '../models/plant.model';
@@ -11,9 +11,9 @@ import { MATERIAL } from '../shared/material';
   imports: [CommonModule, RouterLink, ...MATERIAL],
   template: `
     <mat-card style="height:100%;">
-      <div *ngIf="photoUrl; else noPhoto" style="aspect-ratio:16/9; background:#f3f3f3;">
+      <div *ngIf="photoUrl(); else noPhoto" style="aspect-ratio:16/9; background:#f3f3f3;">
         <img
-          [src]="photoUrl"
+          [src]="photoUrl()!"
           style="width:100%; height:100%; object-fit:cover;"
           alt="Foto planta"
         />
@@ -37,28 +37,28 @@ import { MATERIAL } from '../shared/material';
       <mat-card-content style="display:flex; flex-direction:column; gap:8px; padding-top:12px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
           <div style="font-weight:600; font-size:16px; line-height:1.2;">
-            {{ plant.name }}
+            {{ plant().name }}
           </div>
 
           <button
             mat-icon-button
             type="button"
-            (click)="toggleFav.emit(plant.id)"
-            [attr.aria-label]="isFav ? 'Quitar de favoritos' : 'Marcar favorito'"
+            (click)="toggleFav.emit(plant().id)"
+            [attr.aria-label]="isFav() ? 'Quitar de favoritos' : 'Marcar favorito'"
           >
-            <mat-icon [style.color]="isFav ? '#ff3b30' : 'rgba(156,163,175,0.9)'">
-              {{ isFav ? 'favorite' : 'favorite_border' }}
+            <mat-icon [style.color]="isFav() ? '#ff3b30' : 'rgba(156,163,175,0.9)'">
+              {{ isFav() ? 'favorite' : 'favorite_border' }}
             </mat-icon>
           </button>
         </div>
 
-        <div style="opacity:0.78;" [title]="plant.description ?? ''">
-          {{ shortDesc(plant.description ?? '') }}
+        <div style="opacity:0.78;" [title]="plant().description ?? ''">
+          {{ shortDesc(plant().description ?? '') }}
         </div>
       </mat-card-content>
 
       <mat-card-actions align="end">
-        <a mat-stroked-button color="primary" [routerLink]="['/plants', plant.id]">
+        <a mat-stroked-button color="primary" [routerLink]="['/plants', plant().id]">
           Información
         </a>
       </mat-card-actions>
@@ -66,11 +66,11 @@ import { MATERIAL } from '../shared/material';
   `,
 })
 export class PlantCardComponent {
-  @Input({ required: true }) plant!: Plant;
-  @Input() photoUrl: string | null = null;
-  @Input() isFav = false;
+  plant = input.required<Plant>();
+  photoUrl = input<string | null>(null);
+  isFav = input(false);
 
-  @Output() toggleFav = new EventEmitter<string>();
+  toggleFav = output<string>();
 
   shortDesc(desc: string): string {
     const s = (desc || '').trim();

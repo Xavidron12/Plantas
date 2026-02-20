@@ -6,20 +6,22 @@ import { PlantsPage } from './pages/plants.page';
 import { PlantDetailPage } from './pages/plant-detail.page';
 import { AdminPage } from './pages/admin.page';
 import { MapPage } from './pages/map.page';
+import { authGuard } from './core/guards/auth.guard';
+import { adminGuard } from './core/guards/admin.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'login' },
 
   { path: 'login', component: LoginPage },
   { path: 'register', component: RegisterPage },
-  { path: 'profile', component: ProfilePage },
+  { path: 'profile', component: ProfilePage, canActivate: [authGuard] },
 
-  { path: 'plants', component: PlantsPage },
-  { path: 'plants/:id', component: PlantDetailPage },
+  { path: 'plants', component: PlantsPage, canActivate: [authGuard] },
+  { path: 'plants/:id', component: PlantDetailPage, canActivate: [authGuard] },
 
-  { path: 'map', component: MapPage },
+  { path: 'map', component: MapPage, canActivate: [authGuard] },
 
-  { path: 'admin', component: AdminPage },
+  { path: 'admin', component: AdminPage, canActivate: [adminGuard] },
 
   { path: '**', redirectTo: 'login' }
 ];

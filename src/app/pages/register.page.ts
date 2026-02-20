@@ -126,7 +126,7 @@ export class RegisterPage {
     if (errs?.['minlength']) return { type: 'bad' as MsgType, text: `Mínimo 3 caracteres (llevas ${val.length}).` };
     if (errs?.['required']) return { type: 'bad' as MsgType, text: 'El nombre es obligatorio.' };
 
-    return { type: 'ok' as MsgType, text: 'Nombre OK ✅' };
+    return { type: 'ok' as MsgType, text: 'Nombre correcto.' };
   });
 
   emailMsg = computed(() => {
@@ -143,7 +143,7 @@ export class RegisterPage {
     if (errs?.['email']) return { type: 'bad' as MsgType, text: 'Formato de email no válido.' };
     if (errs?.['required']) return { type: 'bad' as MsgType, text: 'El email es obligatorio.' };
 
-    return { type: 'ok' as MsgType, text: 'Email OK ✅' };
+    return { type: 'ok' as MsgType, text: 'Email correcto.' };
   });
 
   passMsg = computed(() => {
@@ -159,7 +159,7 @@ export class RegisterPage {
     if (errs?.['minlength']) return { type: 'bad' as MsgType, text: `Mínimo 6 caracteres (llevas ${v.length}).` };
     if (errs?.['required']) return { type: 'bad' as MsgType, text: 'La contraseña es obligatoria.' };
 
-    return { type: 'ok' as MsgType, text: 'Contraseña OK ✅' };
+    return { type: 'ok' as MsgType, text: 'Contraseña correcta.' };
   });
 
   async submit() {

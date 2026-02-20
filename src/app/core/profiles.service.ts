@@ -3,8 +3,10 @@ import { SupabaseService } from '../services/supabase.service';
 
 export type Profile = {
   id: string;
+  email: string;
   name: string;
   role: 'admin' | 'client';
+  createdAt: string;
 };
 
 @Injectable({ providedIn: 'root' })
@@ -14,8 +16,9 @@ export class ProfilesService {
   async getAll(): Promise<Profile[]> {
     const { data, error } = await this.sb.supabase
       .from('profiles')
-      .select('id,name,role')
+      .select('id,email,name,role,created_at')
       .order('role', { ascending: true })
+      .order('created_at', { ascending: true })
       .order('name', { ascending: true });
 
     if (error) {
@@ -23,6 +26,17 @@ export class ProfilesService {
       return [];
     }
 
-    return (data ?? []) as Profile[];
+    return ((data ?? []) as any[]).map(r => ({
+      id: r.id,
+      email: r.email ?? '',
+      name: r.name ?? '',
+      role: (r.role === 'admin' ? 'admin' : 'client') as 'admin' | 'client',
+      createdAt: r.created_at ?? '',
+    }));
+  }
+
+  async updateRole(userId: string, role: 'admin' | 'client'): Promise<void> {
+    const { error } = await this.sb.supabase.from('profiles').update({ role }).eq('id', userId);
+    if (error) throw error;
   }
 }

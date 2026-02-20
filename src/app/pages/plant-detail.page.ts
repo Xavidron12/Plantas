@@ -1,10 +1,11 @@
-import { Component, DestroyRef, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { PlantsService } from '../core/plants.service';
-import { RecordsService, PlantRecord } from '../core/records.service';
+import { RecordsService, PlantRecord, RealtimeChannelState } from '../core/records.service';
 import { FavoritesService } from '../core/favorites.service';
 import { Plant } from '../models/plant.model';
 
@@ -13,7 +14,7 @@ import { RecordsListComponent } from '../components/records-list.component';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink, RecordsChartComponent, RecordsListComponent],
+  imports: [CommonModule, RouterLink, MatIconModule, RecordsChartComponent, RecordsListComponent],
   template: `
     <div class="container">
       <div class="d-flex justify-content-between align-items-center mb-3">
@@ -45,31 +46,61 @@ import { RecordsListComponent } from '../components/records-list.component';
               <div class="d-flex flex-column gap-2">
                 <button
                   type="button"
-                  class="btn"
+                  class="btn d-inline-flex align-items-center gap-1"
                   [class.btn-outline-danger]="!isFav()"
                   [class.btn-danger]="isFav()"
                   (click)="toggleFav()"
                   title="Favorito"
                 >
-                  {{ isFav() ? '♥' : '♡' }}
-                </button>
-
-                <button class="btn btn-outline-primary" type="button" (click)="startDemo()">
-                  Iniciar demo
-                </button>
-
-                <button class="btn btn-outline-secondary" type="button" (click)="stopDemo()">
-                  Parar demo
+                  <mat-icon>{{ isFav() ? 'favorite' : 'favorite_border' }}</mat-icon>
+                  <span>{{ isFav() ? 'Quitar favorito' : 'Marcar favorito' }}</span>
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- ✅ Hijo: input records -->
+        <div class="card mb-3">
+          <div class="card-body">
+            <h5 class="mb-2">Estado de datos en tiempo real</h5>
+            <div class="text-muted small mb-3">
+              Los registros se generan en backend con Supabase (<code>pg_cron</code>) cada 1 minuto y esta vista se actualiza por Realtime.
+            </div>
+
+            <div class="row g-3">
+              <div class="col-12 col-md-3">
+                <div class="small text-muted mb-1">Conexión realtime</div>
+                <span
+                  class="badge"
+                  [class.bg-success]="realtimeStatus()==='subscribed'"
+                  [class.bg-warning]="realtimeStatus()==='connecting'"
+                  [class.bg-danger]="realtimeStatus()==='channel_error' || realtimeStatus()==='timed_out'"
+                  [class.bg-secondary]="realtimeStatus()==='closed'"
+                >
+                  {{ realtimeStatusLabel() }}
+                </span>
+              </div>
+
+              <div class="col-12 col-md-3">
+                <div class="small text-muted mb-1">Último registro</div>
+                <div>{{ lastRecordAt() }}</div>
+              </div>
+
+              <div class="col-12 col-md-3">
+                <div class="small text-muted mb-1">Registros recibidos (sesión)</div>
+                <div>{{ receivedInSession() }}</div>
+              </div>
+
+              <div class="col-12 col-md-3">
+                <div class="small text-muted mb-1">Frecuencia esperada</div>
+                <div>1 registro/minuto por planta</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <app-records-chart [records]="records()" />
 
-        <!-- ✅ Hijo: input records -->
         <app-records-list [records]="records()" />
       </ng-container>
 
@@ -80,26 +111,27 @@ import { RecordsListComponent } from '../components/records-list.component';
   `,
 })
 export class PlantDetailPage implements OnInit, OnDestroy {
-  private route = inject(ActivatedRoute);
   private plants = inject(PlantsService);
   private recordsService = inject(RecordsService);
   private favs = inject(FavoritesService);
   private destroyRef = inject(DestroyRef);
 
-  private plantId = this.route.snapshot.paramMap.get('id') ?? '';
+  id = input.required<string>();
 
   plant = signal<Plant | null>(null);
   records = signal<PlantRecord[]>([]);
   error = signal('');
 
+  realtimeStatus = signal<RealtimeChannelState>('closed');
+  baselineRecordsCount = signal(0);
+
   favIds = signal<Set<string>>(new Set());
 
   photoUrl = computed(() => {
-  const p = this.plant();
-  if (!p) return null;
-  return (p as any).photoUrl ?? null;
-});
-
+    const p = this.plant();
+    if (!p) return null;
+    return (p as any).photoUrl ?? null;
+  });
 
   isFav = computed(() => {
     const p = this.plant();
@@ -107,16 +139,42 @@ export class PlantDetailPage implements OnInit, OnDestroy {
     return this.favIds().has(p.id);
   });
 
+  realtimeStatusLabel = computed(() => {
+    switch (this.realtimeStatus()) {
+      case 'subscribed':
+        return 'Conectado';
+      case 'connecting':
+        return 'Conectando...';
+      case 'timed_out':
+        return 'Timeout';
+      case 'channel_error':
+        return 'Error de canal';
+      default:
+        return 'Desconectado';
+    }
+  });
+
+  lastRecordAt = computed(() => {
+    const list = this.records();
+    if (!list.length) return 'Sin registros aún';
+    return this.formatDate(list[list.length - 1].createdAt);
+  });
+
+  receivedInSession = computed(() => {
+    return Math.max(this.records().length - this.baselineRecordsCount(), 0);
+  });
+
   async ngOnInit() {
     this.error.set('');
 
     try {
-      if (!this.plantId) {
+      const plantId = this.id();
+      if (!plantId) {
         this.error.set('ID de planta inválido.');
         return;
       }
 
-      const p = await this.plants.getById(this.plantId);
+      const p = await this.plants.getById(plantId);
       if (!p) {
         this.error.set('Planta no encontrada.');
         return;
@@ -127,26 +185,29 @@ export class PlantDetailPage implements OnInit, OnDestroy {
       const favs = await this.favs.getMyFavoritePlantIds();
       this.favIds.set(favs);
 
-      // ✅ Stream records
       this.recordsService
-        .recordsByPlant$(this.plantId)
+        .recordsByPlant$(plantId)
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe(list => this.records.set(list));
 
-      // ✅ carga inicial
-      await this.recordsService.refreshPlant(this.plantId);
+      this.recordsService
+        .realtimeStatus$(plantId)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(status => this.realtimeStatus.set(status));
 
-      // ✅ realtime
-      this.recordsService.startRealtime(this.plantId);
+      await this.recordsService.refreshPlant(plantId);
+      this.baselineRecordsCount.set(this.records().length);
+
+      this.recordsService.startRealtime(plantId);
     } catch (e: any) {
       this.error.set(e?.message ?? String(e));
     }
   }
 
   ngOnDestroy() {
-    if (this.plantId) {
-      this.recordsService.stopRealtime(this.plantId);
-      this.recordsService.stopMockInserts(this.plantId);
+    const plantId = this.id();
+    if (plantId) {
+      this.recordsService.stopRealtime(plantId);
     }
   }
 
@@ -169,13 +230,9 @@ export class PlantDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  startDemo() {
-    if (!this.plantId) return;
-    this.recordsService.startMockInserts(this.plantId, 2000);
-  }
-
-  stopDemo() {
-    if (!this.plantId) return;
-    this.recordsService.stopMockInserts(this.plantId);
+  private formatDate(value: string) {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return value;
+    return d.toLocaleString();
   }
 }

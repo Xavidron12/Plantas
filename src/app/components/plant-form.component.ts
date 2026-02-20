@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Plant } from '../models/plant.model';
 import { GeolocationService } from '../core/geolocation.service';
@@ -128,30 +128,32 @@ type SavePayload = {
 export class PlantFormComponent {
   private geo = inject(GeolocationService);
 
+  initial = input<Plant | null>(null);
+
   title = signal('Nueva planta');
   error = signal('');
   locating = signal(false);
   isEdit = signal(false);
 
-  // ✅ Campos (Signal Form)
+  // Campos del formulario
   name = signal('');
   description = signal('');
   lat = signal(0);
   lng = signal(0);
 
-  // ✅ Foto
+  // Estado de la foto
   photoFile = signal<File | null>(null);
   previewUrl = signal<string>('');
   currentPhotoUrl = signal<string | null>(null);
 
-  // ✅ “Touched” (para mostrar errores)
+  // Flags para mostrar errores cuando se toque el campo
   private touched = signal<{ name: boolean; lat: boolean; lng: boolean }>({ name: false, lat: false, lng: false });
 
   touchedName = computed(() => this.touched().name);
   touchedLat = computed(() => this.touched().lat);
   touchedLng = computed(() => this.touched().lng);
 
-  // ✅ Validación (computed)
+  // Validaciones del formulario
   nameError = computed(() => {
     const v = this.name().trim();
     if (!v) return 'El nombre es obligatorio.';
@@ -177,8 +179,21 @@ export class PlantFormComponent {
     return !this.nameError() && !this.latError() && !this.lngError();
   });
 
-  // ✅ Input inicial (edición)
-  @Input() set initial(p: Plant | null) {
+  save = output<SavePayload>();
+  cancel = output<void>();
+
+  constructor() {
+    effect(() => {
+      const initial = this.initial();
+      untracked(() => this.applyInitial(initial));
+    });
+  }
+
+  ngOnDestroy() {
+    this.clearPreview();
+  }
+
+  private applyInitial(p: Plant | null) {
     if (!p) {
       this.isEdit.set(false);
       this.title.set('Nueva planta');
@@ -212,9 +227,6 @@ export class PlantFormComponent {
     this.touched.set({ name: false, lat: false, lng: false });
     this.error.set('');
   }
-
-  @Output() save = new EventEmitter<SavePayload>();
-  @Output() cancel = new EventEmitter<void>();
 
   touch(field: 'name' | 'lat' | 'lng') {
     const t = this.touched();

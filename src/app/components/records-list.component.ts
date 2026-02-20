@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input } from '@angular/core';
+import { Component, input } from '@angular/core';
 
 import { PlantRecord } from '../core/records.service';
 
@@ -10,14 +10,14 @@ import { PlantRecord } from '../core/records.service';
   template: `
     <div class="card">
       <div class="card-body">
-        <h5 class="mb-3">Últimos registros</h5>
+        <h5 class="mb-3">Últimos 20 registros</h5>
 
-        <div class="alert alert-warning" *ngIf="records.length === 0">
+        <div class="alert alert-warning" *ngIf="records().length === 0">
           Aún no hay registros.
         </div>
 
-        <ul class="mb-0" *ngIf="records.length > 0">
-          <li *ngFor="let r of records.slice().reverse()">
+        <ul class="mb-0" *ngIf="records().length > 0">
+          <li *ngFor="let r of records().slice().reverse()">
             {{ r.createdAt }} | Consumo: {{ r.consumptionW }}W | Generación: {{ r.generationW }}W
           </li>
         </ul>
@@ -26,5 +26,5 @@ import { PlantRecord } from '../core/records.service';
   `,
 })
 export class RecordsListComponent {
-  @Input({ required: true }) records: PlantRecord[] = [];
+  records = input.required<PlantRecord[]>();
 }

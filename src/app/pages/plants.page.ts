@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, OnInit, DestroyRef } from '@angular/core';
+import { Component, computed, effect, inject, signal, OnInit, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -6,6 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PlantsService } from '../core/plants.service';
 import { FavoritesService } from '../core/favorites.service';
 import { AuthService } from '../core/auth.service';
+import { AppStoreService } from '../core/store/app-store.service';
 import { Plant } from '../models/plant.model';
 import { PlantCardComponent } from '../components/plant-card.component';
 import { PlantFormComponent } from '../components/plant-form.component';
@@ -115,10 +116,11 @@ export class PlantsPage implements OnInit {
   private plantsService = inject(PlantsService);
   private favsService = inject(FavoritesService);
   private auth = inject(AuthService);
+  private store = inject(AppStoreService);
   private destroyRef = inject(DestroyRef);
 
-  term = signal('');
-  onlyFavs = signal(false);
+  term = signal(this.store.snapshot().plants.filters.term);
+  onlyFavs = signal(this.store.snapshot().plants.filters.onlyFavs);
 
   loading = signal(true);
   error = signal('');
@@ -128,6 +130,15 @@ export class PlantsPage implements OnInit {
 
   showForm = signal(false);
   private ownerId = '';
+
+  constructor() {
+    effect(() => {
+      this.store.dispatch({
+        type: 'plants/setFilters',
+        payload: { term: this.term(), onlyFavs: this.onlyFavs() },
+      });
+    });
+  }
 
   filteredPlants = computed(() => {
     const raw = this.term();
@@ -178,7 +189,13 @@ export class PlantsPage implements OnInit {
       this.plantsService
         .plantsByOwner$(this.ownerId)
         .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe(list => this.plants.set(list));
+        .subscribe(list => {
+          this.plants.set(list);
+          this.store.dispatch({
+            type: 'plants/setByOwner',
+            payload: { ownerId: this.ownerId, plants: list },
+          });
+        });
 
       await this.plantsService.refreshByOwner(this.ownerId);
     } catch (e: any) {
