@@ -1,4 +1,4 @@
-﻿# Proyecto Plantas Solares (Angular + Supabase)
+﻿# Xavi Lledo 2 DAW Proyecto Plantas Solares (Angular + Supabase)
 
 Aplicacion web para la gestion de plantas solares con autenticacion, permisos por rol, almacenamiento de imagenes y datos en tiempo real.
 
