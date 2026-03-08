@@ -1,15 +1,7 @@
 import { Injectable, computed, signal } from '@angular/core';
 import { SupabaseService } from '../services/supabase.service';
 import { AppStoreService } from './store/app-store.service';
-
-export type UserRole = 'admin' | 'client';
-
-export interface AppUser {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-}
+import { AppUser, UserRole } from '../models/user.model';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -47,7 +39,7 @@ export class AuthService {
     const email = sessionUser.email ?? '';
 
     // El rol se lee de public.profiles para que siempre sea el vigente.
-    const { data: profile, error } = await this.sb.supabase
+    const { data: profile } = await this.sb.supabase
       .from('profiles')
       .select('name, role')
       .eq('id', sessionUser.id)
@@ -63,6 +55,9 @@ export class AuthService {
       (email.split('@')[0] ?? 'user');
 
     const role: UserRole = dbRole === 'admin' ? 'admin' : 'client';
+    const avatarUrlRaw = sessionUser.user_metadata?.['avatar_url'];
+    const avatarUrl =
+      typeof avatarUrlRaw === 'string' && avatarUrlRaw.trim().length > 0 ? avatarUrlRaw : null;
 
 
     this._user.set({
@@ -70,6 +65,7 @@ export class AuthService {
       email,
       name,
       role,
+      avatarUrl,
     });
 
     this.store.dispatch({
@@ -122,6 +118,23 @@ export class AuthService {
 
     await this.sb.supabase.auth.updateUser({ data: { name } });
     await this.sb.supabase.from('profiles').update({ name }).eq('id', u.id);
+
+    await this.loadSession();
+  }
+
+  async updateAvatar(avatarUrl: string | null) {
+    const u = this._user();
+    if (!u) throw new Error('No hay usuario logueado');
+
+    const { error } = await this.sb.supabase.auth.updateUser({
+      data: { avatar_url: avatarUrl },
+    });
+    if (error) throw error;
+
+    // Compatibilidad opcional: si existe columna avatar_url en public.profiles, se sincroniza.
+    try {
+      await this.sb.supabase.from('profiles').update({ avatar_url: avatarUrl }).eq('id', u.id);
+    } catch {}
 
     await this.loadSession();
   }

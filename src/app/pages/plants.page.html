@@ -1,0 +1,168 @@
+﻿<div class="plants-shell">
+  <section class="card shadow-sm plants-hero">
+    <div class="card-body p-4">
+      <div class="plants-hero__top">
+        <div>
+          <p class="plants-hero__eyebrow mb-2">Operacion diaria</p>
+          <h1 class="plants-hero__title mb-1">Panel de plantas</h1>
+          <p class="plants-hero__subtitle mb-0">
+            Gestiona tus plantas, controla favoritos y accede rapidamente al detalle operativo.
+          </p>
+        </div>
+
+        <div class="plants-hero__actions">
+          @if (!showForm()) {
+            <button mat-raised-button color="primary" type="button" (click)="openCreate()">
+              Nueva planta
+            </button>
+          }
+          <button mat-stroked-button type="button" (click)="refresh()" [disabled]="loading() || refreshing()">
+            {{ refreshing() ? 'Recargando...' : 'Recargar' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="plants-hero__stats mt-3">
+        <article class="plants-stat">
+          <div class="plants-stat__value">{{ totalPlants() }}</div>
+          <div class="plants-stat__label">Total plantas</div>
+        </article>
+
+        <article class="plants-stat">
+          <div class="plants-stat__value">{{ favoritesCount() }}</div>
+          <div class="plants-stat__label">Favoritas</div>
+        </article>
+
+        <article class="plants-stat">
+          <div class="plants-stat__value">{{ shownCount() }}</div>
+          <div class="plants-stat__label">En pantalla</div>
+        </article>
+
+        <article class="plants-stat">
+          <div class="plants-stat__value plants-stat__value--text">{{ currentUserName() }}</div>
+          <div class="plants-stat__label">Usuario activo</div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  @if (loading()) {
+    <mat-card class="plants-panel">
+      <mat-card-content>Cargando plantas...</mat-card-content>
+    </mat-card>
+  } @else {
+    @if (error()) {
+      <mat-card class="plants-panel plants-panel--error">
+        <mat-card-content>
+          <mat-error>{{ error() }}</mat-error>
+        </mat-card-content>
+      </mat-card>
+    }
+
+    @if (showForm()) {
+      <section class="plants-panel">
+        <app-plant-form [initial]="null" (save)="createFromForm($event)" (cancel)="closeCreate()" />
+      </section>
+    } @else {
+      <mat-card class="plants-panel">
+        <mat-card-content>
+          <form #f="ngForm" (ngSubmit)="$event.preventDefault()" class="plants-filters">
+            <div class="plants-filters__grid">
+              <mat-form-field appearance="outline">
+                <mat-label>Buscar por nombre</mat-label>
+                <input
+                  matInput
+                  name="term"
+                  [ngModel]="term()"
+                  (ngModelChange)="term.set($event)"
+                  placeholder="Ej: planta norte"
+                  minlength="2"
+                />
+                <mat-hint>Minimo 2 caracteres para filtrar.</mat-hint>
+
+                @if (f.controls['term']?.touched && f.controls['term']?.invalid) {
+                  <div class="plants-filters__error">El texto debe tener al menos 2 caracteres.</div>
+                }
+              </mat-form-field>
+
+              <div class="plants-filters__sort">
+                <label for="plantSort" class="form-label">Ordenar</label>
+                <select
+                  id="plantSort"
+                  class="form-select"
+                  name="sortBy"
+                  [ngModel]="sortBy()"
+                  (ngModelChange)="sortBy.set($event)"
+                >
+                  <option value="recent">Mas recientes</option>
+                  <option value="nameAsc">Nombre (A-Z)</option>
+                  <option value="nameDesc">Nombre (Z-A)</option>
+                  <option value="favoritesFirst">Favoritas primero</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="plants-filters__controls">
+              <mat-checkbox name="onlyFavs" [ngModel]="onlyFavs()" (ngModelChange)="onlyFavs.set($event)">
+                Solo favoritas
+              </mat-checkbox>
+
+              <button mat-stroked-button type="button" (click)="clearFilters()" [disabled]="!filterActive()">
+                Limpiar filtros
+              </button>
+
+              <span class="small text-muted">{{ lastSyncedLabel() }}</span>
+            </div>
+
+            <div class="small text-muted">{{ searchHint() }}</div>
+
+            @if (filterActive() || sortBy() !== 'recent') {
+              <div class="plants-filters__tags">
+                @if (term().trim()) {
+                  <span class="badge text-bg-secondary">Texto: "{{ term().trim() }}"</span>
+                }
+                @if (onlyFavs()) {
+                  <span class="badge text-bg-dark">Solo favoritas</span>
+                }
+                @if (sortBy() !== 'recent') {
+                  <span class="badge text-bg-light border">Orden: {{ sortLabel() }}</span>
+                }
+              </div>
+            }
+          </form>
+        </mat-card-content>
+      </mat-card>
+
+      @if (!error() && filteredPlants().length === 0) {
+        <mat-card class="plants-panel">
+          <mat-card-content class="plants-empty">
+            <div class="plants-empty__title">No hay plantas para mostrar</div>
+            @if (filterActive() || sortBy() !== 'recent') {
+              <div class="text-muted">No hay coincidencias con los filtros actuales.</div>
+              <button mat-stroked-button type="button" (click)="clearFilters()">Limpiar filtros</button>
+            } @else {
+              <div class="text-muted">Crea una planta para empezar a operar.</div>
+              <button mat-raised-button color="primary" type="button" (click)="openCreate()">
+                Crear primera planta
+              </button>
+            }
+          </mat-card-content>
+        </mat-card>
+      }
+
+      @if (!error() && filteredPlants().length > 0) {
+        <section class="plants-grid">
+          @for (p of filteredPlants(); track p.id) {
+            <app-plant-card
+              [plant]="p"
+              [photoUrl]="photoUrlOf(p)"
+              [isFav]="isFav(p.id)"
+              (toggleFav)="toggleFav($event)"
+            />
+          }
+        </section>
+      }
+    }
+  }
+</div>
+

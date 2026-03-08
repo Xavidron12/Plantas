@@ -2,14 +2,19 @@ import { Injectable } from '@angular/core';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
 
+let sharedClient: SupabaseClient | null = null;
+
 @Injectable({
   providedIn: 'root',
 })
 export class SupabaseService {
-  private client: SupabaseClient;
+  private readonly client: SupabaseClient;
 
   constructor() {
-    this.client = createClient(environment.supabaseUrl, environment.supabaseAnonKey);
+    if (!sharedClient) {
+      sharedClient = createClient(environment.supabaseUrl, environment.supabaseAnonKey);
+    }
+    this.client = sharedClient;
   }
 
   get supabase() {

@@ -1,0 +1,150 @@
+﻿<div class="detail-shell container">
+  <div class="detail-header">
+    <div>
+      <h1 class="mb-0">Detalle de planta</h1>
+      <div class="text-muted">Operaciones en tiempo real y rendimiento</div>
+    </div>
+    <div class="detail-header__actions">
+      <button class="btn btn-outline-primary" type="button" (click)="refreshRecords()" [disabled]="refreshing() || loading()">
+        {{ refreshing() ? 'Actualizando...' : 'Actualizar datos' }}
+      </button>
+      <a class="btn btn-outline-secondary" routerLink="/plants">Volver</a>
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-danger">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="alert alert-info">Cargando detalle de planta...</div>
+  } @else if (plant()) {
+    <section class="card shadow-sm detail-overview mb-3">
+      <div class="card-body">
+        <div class="row g-3 align-items-start">
+          <div class="col-12 col-lg-8">
+            <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+              <div>
+                <h2 class="h4 mb-1">{{ plant()!.name }}</h2>
+                <div class="text-muted" *ngIf="plant()!.description">{{ plant()!.description }}</div>
+              </div>
+
+              <button
+                type="button"
+                class="btn d-inline-flex align-items-center gap-1"
+                [class.btn-outline-danger]="!isFav()"
+                [class.btn-danger]="isFav()"
+                (click)="toggleFav()"
+                title="Favorito"
+              >
+                <mat-icon>{{ isFav() ? 'favorite' : 'favorite_border' }}</mat-icon>
+                <span>{{ isFav() ? 'Quitar favorito' : 'Marcar favorito' }}</span>
+              </button>
+            </div>
+
+            <div class="detail-meta mt-3">
+              <span class="badge text-bg-light border">Lat: {{ plant()!.lat }}</span>
+              <span class="badge text-bg-light border">Lng: {{ plant()!.lng }}</span>
+              <span class="badge text-bg-light border">Registros: {{ records().length }}</span>
+              <span class="badge text-bg-light border">Cobertura: {{ coveragePct() }}%</span>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-4" *ngIf="photoUrl()">
+            <img [src]="photoUrl()!" class="detail-photo" alt="Foto de planta" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="row g-3 mb-3">
+      <div class="col-12 col-md-3">
+        <article class="card shadow-sm metric-card h-100">
+          <div class="card-body">
+            <div class="metric-card__label">Ultimo consumo</div>
+            <div class="metric-card__value">{{ formatWatts(latestConsumption()) }}</div>
+            <div class="small text-muted">Media: {{ formatWatts(avgConsumption()) }}</div>
+          </div>
+        </article>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <article class="card shadow-sm metric-card h-100">
+          <div class="card-body">
+            <div class="metric-card__label">Ultima generacion</div>
+            <div class="metric-card__value">{{ formatWatts(latestGeneration()) }}</div>
+            <div class="small text-muted">Media: {{ formatWatts(avgGeneration()) }}</div>
+          </div>
+        </article>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <article class="card shadow-sm metric-card h-100" [ngClass]="balanceClass()">
+          <div class="card-body">
+            <div class="metric-card__label">Balance instantaneo</div>
+            <div class="metric-card__value">
+              {{ latestBalance() >= 0 ? '+' : '' }}{{ formatWatts(latestBalance()) }}
+            </div>
+            <div class="small">{{ balanceText() }}</div>
+          </div>
+        </article>
+      </div>
+
+      <div class="col-12 col-md-3">
+        <article class="card shadow-sm metric-card h-100">
+          <div class="card-body">
+            <div class="metric-card__label">Cobertura de consumo</div>
+            <div class="metric-card__value">{{ coveragePct() }}%</div>
+            <div class="detail-progress mt-2">
+              <div class="detail-progress__fill" [style.width.%]="coveragePct() > 100 ? 100 : coveragePct()"></div>
+            </div>
+            <div class="small text-muted mt-2">{{ lastSyncedLabel() }}</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="card shadow-sm detail-status mb-3">
+      <div class="card-body">
+        <h3 class="h5 mb-2">Estado de datos en tiempo real</h3>
+        <div class="text-muted small mb-3">
+          Los registros se generan en backend con Supabase (<code>pg_cron</code>) cada 1 minuto.
+        </div>
+
+        <div class="row g-3">
+          <div class="col-12 col-md-3">
+            <div class="small text-muted mb-1">Conexion realtime</div>
+            <span
+              class="badge"
+              [class.bg-success]="realtimeStatus()==='subscribed'"
+              [class.bg-warning]="realtimeStatus()==='connecting'"
+              [class.bg-danger]="realtimeStatus()==='channel_error' || realtimeStatus()==='timed_out'"
+              [class.bg-secondary]="realtimeStatus()==='closed'"
+            >
+              {{ realtimeStatusLabel() }}
+            </span>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <div class="small text-muted mb-1">Ultimo registro</div>
+            <div>{{ lastRecordAt() }}</div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <div class="small text-muted mb-1">Recibidos en sesion</div>
+            <div>{{ receivedInSession() }}</div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <div class="small text-muted mb-1">Frecuencia esperada</div>
+            <div>1 registro/minuto</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <app-records-chart [records]="records()" />
+    <app-records-list [records]="records()" />
+  }
+</div>
+

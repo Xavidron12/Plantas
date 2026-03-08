@@ -1,0 +1,128 @@
+﻿.detail-shell {
+  max-width: 1120px;
+  padding-top: 22px;
+  padding-bottom: 22px;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.detail-header__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-overview {
+  border: 1px solid rgba(15, 23, 42, 0.1) !important;
+  background:
+    radial-gradient(circle at 90% 8%, rgba(255, 204, 71, 0.2), transparent 35%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(250, 252, 255, 0.9));
+}
+
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-photo {
+  width: 100%;
+  max-height: 270px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+}
+
+.metric-card {
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+}
+
+.metric-card__label {
+  font-size: 0.76rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  opacity: 0.76;
+}
+
+.metric-card__value {
+  margin-top: 4px;
+  font-size: 1.35rem;
+  line-height: 1.1;
+  font-weight: 800;
+}
+
+.detail-progress {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.detail-progress__fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  border-radius: 999px;
+}
+
+.metric--positive {
+  border-color: rgba(34, 197, 94, 0.4) !important;
+}
+
+.metric--positive .metric-card__value {
+  color: #166534;
+}
+
+.metric--negative {
+  border-color: rgba(239, 68, 68, 0.36) !important;
+}
+
+.metric--negative .metric-card__value {
+  color: #b91c1c;
+}
+
+.detail-status {
+  border: 1px solid rgba(15, 23, 42, 0.1) !important;
+}
+
+:host-context(body[data-theme='dark']) .detail-overview {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  background:
+    radial-gradient(circle at 90% 8%, rgba(255, 198, 72, 0.16), transparent 35%),
+    linear-gradient(145deg, rgba(8, 20, 36, 0.94), rgba(12, 24, 42, 0.9));
+}
+
+:host-context(body[data-theme='dark']) .detail-photo {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+:host-context(body[data-theme='dark']) .metric-card,
+:host-context(body[data-theme='dark']) .detail-status {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+:host-context(body[data-theme='dark']) .detail-progress {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+:host-context(body[data-theme='dark']) .metric--positive .metric-card__value {
+  color: #86efac;
+}
+
+:host-context(body[data-theme='dark']) .metric--negative .metric-card__value {
+  color: #fda4af;
+}
+
+@media (max-width: 768px) {
+  .detail-shell {
+    padding-top: 14px;
+  }
+}
+

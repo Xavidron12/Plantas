@@ -1,0 +1,36 @@
+﻿.register-card-wrap {
+  width: min(100%, 560px);
+}
+
+.register-card {
+  border: 1px solid rgba(15, 23, 42, 0.1) !important;
+}
+
+.register-form {
+  display: grid;
+  gap: 14px;
+}
+
+.register-card__switch {
+  font-size: 0.92rem;
+  color: #475569;
+}
+
+.register-card__switch a {
+  margin-left: 6px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.register-card__switch a:hover {
+  text-decoration: underline;
+}
+
+:host-context(body[data-theme='dark']) .register-card {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+:host-context(body[data-theme='dark']) .register-card__switch {
+  color: rgba(203, 213, 225, 0.86);
+}
+

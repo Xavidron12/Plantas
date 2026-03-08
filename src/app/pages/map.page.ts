@@ -1,5 +1,14 @@
-import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, DestroyRef, inject, signal } from '@angular/core';
+﻿import { CommonModule } from '@angular/common';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnDestroy,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
@@ -12,26 +21,11 @@ import { Plant } from '../models/plant.model';
 @Component({
   standalone: true,
   imports: [CommonModule, RouterLink],
-  template: `
-    <div class="container">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h2 class="mb-0">Mapa de plantas</h2>
-          <div class="text-muted">
-            {{ subtitle() }}
-          </div>
-        </div>
-        <a class="btn btn-outline-secondary" routerLink="/plants">Volver</a>
-      </div>
-
-      <div class="alert alert-info" *ngIf="loading()">Cargando...</div>
-      <div class="alert alert-danger" *ngIf="error()">{{ error() }}</div>
-
-      <div id="map" class="border rounded" style="height: 70vh; min-height: 420px;"></div>
-    </div>
-  `,
+  templateUrl: './map.page.html',
+  styleUrl: './map.page.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class MapPage implements AfterViewInit {
+export class MapPage implements AfterViewInit, OnDestroy {
   private plantsService = inject(PlantsService);
   private auth = inject(AuthService);
   private router = inject(Router);
@@ -40,14 +34,36 @@ export class MapPage implements AfterViewInit {
   loading = signal(true);
   error = signal('');
 
-  subtitle = signal('Haz click en un marcador para ver el detalle');
+  subtitle = signal('Haz clic en un marcador para abrir su detalle.');
 
   plants = signal<Plant[]>([]);
+  markerCount = signal(0);
+
+  mapStatus = computed(() => {
+    if (this.loading()) return 'Cargando datos geograficos...';
+    if (this.error()) return 'Error de carga';
+    if (this.markerCount() === 0) return 'Sin marcadores activos';
+    return `${this.markerCount()} marcadores activos`;
+  });
+
   private map: L.Map | null = null;
   private layer = L.layerGroup();
+  private streamsBound = false;
 
   async ngAfterViewInit() {
     await this.init();
+  }
+
+  async reload() {
+    await this.init();
+  }
+
+  ngOnDestroy() {
+    this.layer.clearLayers();
+    if (this.map) {
+      this.map.remove();
+      this.map = null;
+    }
   }
 
   private async waitForUser(maxMs = 10000) {
@@ -66,7 +82,7 @@ export class MapPage implements AfterViewInit {
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '© OpenStreetMap contributors',
+      attribution: '(c) OpenStreetMap contributors',
     }).addTo(map);
 
     this.layer.addTo(map);
@@ -78,7 +94,11 @@ export class MapPage implements AfterViewInit {
 
     this.layer.clearLayers();
 
-    const valid = list.filter(p => typeof p.lat === 'number' && typeof p.lng === 'number');
+    const valid = list.filter(
+      p => Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng))
+    );
+
+    this.markerCount.set(valid.length);
 
     for (const p of valid) {
       const m = L.marker([p.lat, p.lng])
@@ -95,6 +115,8 @@ export class MapPage implements AfterViewInit {
     if (valid.length > 0) {
       const bounds = L.latLngBounds(valid.map(p => [p.lat, p.lng] as [number, number]));
       this.map.fitBounds(bounds.pad(0.2));
+    } else {
+      this.map.setView([40.4168, -3.7038], 6);
     }
   }
 
@@ -105,36 +127,40 @@ export class MapPage implements AfterViewInit {
     try {
       const user = await this.waitForUser();
       if (!user) {
-        this.error.set('No hay sesión. Vuelve a iniciar sesión.');
+        this.error.set('No hay sesion. Vuelve a iniciar sesion.');
         return;
       }
 
       const isAdmin = this.auth.isAdmin();
       const ownerId = user.id;
 
-      this.subtitle.set(isAdmin ? 'Vista admin: todas las plantas' : 'Vista cliente: tus plantas');
-
       this.initLeaflet();
 
-      if (isAdmin) {
-        this.plantsService
-          .plants$()
-          .pipe(takeUntilDestroyed(this.destroyRef))
-          .subscribe(list => {
-            this.plants.set(list);
-            this.renderMarkers(list);
-          });
+      if (!this.streamsBound) {
+        if (isAdmin) {
+          this.plantsService
+            .plants$()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe(list => {
+              this.plants.set(list);
+              this.renderMarkers(list);
+            });
+        } else {
+          this.plantsService
+            .plantsByOwner$(ownerId)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe(list => {
+              this.plants.set(list);
+              this.renderMarkers(list);
+            });
+        }
 
+        this.streamsBound = true;
+      }
+
+      if (isAdmin) {
         await this.plantsService.refreshAll();
       } else {
-        this.plantsService
-          .plantsByOwner$(ownerId)
-          .pipe(takeUntilDestroyed(this.destroyRef))
-          .subscribe(list => {
-            this.plants.set(list);
-            this.renderMarkers(list);
-          });
-
         await this.plantsService.refreshByOwner(ownerId);
       }
     } catch (e: any) {
@@ -153,3 +179,4 @@ function escapeHtml(s: string) {
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
 }
+

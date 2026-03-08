@@ -1,93 +1,84 @@
-<mat-toolbar color="primary">
-  <a
-    mat-button
-    routerLink="/plants"
-    style="font-weight:700; font-size:18px; color:inherit; text-decoration:none;"
-  >
-    Plantas Solares
-  </a>
+﻿<mat-toolbar class="app-toolbar">
+  <a mat-button routerLink="/home" class="app-brand">Plantas Solares</a>
 
-  <span style="flex:1 1 auto;"></span>
+  <span class="app-toolbar__spacer"></span>
 
-  <a mat-button routerLink="/plants">Plantas</a>
-  <a mat-button routerLink="/map">Mapa</a>
-  <a mat-button routerLink="/admin" *ngIf="isLogged() && isAdmin()">Admin</a>
-
-  <!-- Si NO hay sesión -->
-  <ng-container *ngIf="!isLogged()">
-    <a mat-button routerLink="/login">Login</a>
-    <a mat-stroked-button routerLink="/register">Crear cuenta</a>
-  </ng-container>
-
-  <!-- Toggle tema -->
-  <button
-    mat-icon-button
-    type="button"
-    (click)="toggleTheme()"
-    aria-label="Cambiar tema"
-    style="margin-left:8px;"
-  >
-    <mat-icon>{{ theme() === 'light' ? 'dark_mode' : 'light_mode' }}</mat-icon>
-  </button>
-
-  <!-- Si hay sesión -->
-  <ng-container *ngIf="isLogged()">
-    <button
-      mat-icon-button
-      [matMenuTriggerFor]="userMenu"
-      aria-label="Menú usuario"
-      style="margin-left:8px; transform: translateY(-5px);"
+  <nav class="app-nav">
+    <a
+      mat-button
+      routerLink="/home"
+      routerLinkActive="app-nav__link--active"
+      [routerLinkActiveOptions]="{ exact: true }"
     >
-      <span
-        style="
-          display:inline-flex;
-          width:36px; height:36px;
-          border-radius:999px;
-          align-items:center; justify-content:center;
-          font-weight:700;
-          background: rgba(255,255,255,0.25);
-        "
-      >
-        {{ avatarLetter() }}
-      </span>
+      Inicio
+    </a>
+    <a mat-button routerLink="/plants" routerLinkActive="app-nav__link--active">Plantas</a>
+    <a mat-button routerLink="/map" routerLinkActive="app-nav__link--active">Mapa</a>
+    @if (isLogged() && isAdmin()) {
+      <a mat-button routerLink="/admin" routerLinkActive="app-nav__link--active">Admin</a>
+    }
+  </nav>
+
+  <div class="app-toolbar__actions">
+    @if (!isLogged()) {
+      <a mat-button routerLink="/login">Login</a>
+      <a mat-stroked-button routerLink="/register">Crear cuenta</a>
+    }
+
+    <button mat-icon-button class="app-icon-action" type="button" (click)="toggleTheme()" aria-label="Cambiar tema">
+      <mat-icon>{{ theme() === 'light' ? 'dark_mode' : 'light_mode' }}</mat-icon>
     </button>
 
-    <mat-menu #userMenu="matMenu">
-      <div style="padding:12px 16px; max-width:280px;">
-        <div style="font-size:12px; opacity:0.85;">Sesión iniciada como</div>
-        <div style="font-weight:600; margin-top:2px;">{{ user()?.email }}</div>
-        <div style="margin-top:6px;">
-          <span style="font-size:12px; opacity:0.85;">Rol:</span>
-          <span style="font-weight:600; margin-left:6px;">{{ user()?.role }}</span>
+    @if (isLogged()) {
+      <button
+        mat-icon-button
+        class="app-icon-action app-user-trigger"
+        [matMenuTriggerFor]="userMenu"
+        aria-label="Menu usuario"
+      >
+        @if (user()?.avatarUrl) {
+          <img [src]="user()?.avatarUrl!" alt="Avatar" class="app-avatar" />
+        } @else {
+          <span class="app-avatar app-avatar--fallback">{{ avatarLetter() }}</span>
+        }
+      </button>
+
+      <mat-menu #userMenu="matMenu">
+        <div class="app-user-menu__header">
+          <div class="app-user-menu__label">Sesion iniciada como</div>
+          <div class="app-user-menu__email">{{ user()?.email }}</div>
+          <div class="app-user-menu__role">
+            <span>Rol:</span>
+            <strong>{{ user()?.role }}</strong>
+          </div>
         </div>
-      </div>
 
-      <mat-divider></mat-divider>
+        <mat-divider></mat-divider>
 
-      <button mat-menu-item routerLink="/profile">
-        <mat-icon>person</mat-icon>
-        <span>Perfil</span>
-      </button>
+        <button mat-menu-item routerLink="/profile">
+          <mat-icon>person</mat-icon>
+          <span>Perfil</span>
+        </button>
 
-      <button mat-menu-item routerLink="/admin" *ngIf="isAdmin()">
-        <mat-icon>admin_panel_settings</mat-icon>
-        <span>Admin</span>
-      </button>
+        @if (isAdmin()) {
+          <button mat-menu-item routerLink="/admin">
+            <mat-icon>admin_panel_settings</mat-icon>
+            <span>Admin</span>
+          </button>
+        }
 
-      <mat-divider></mat-divider>
+        <mat-divider></mat-divider>
 
-      <button mat-menu-item (click)="logout()">
-        <mat-icon>logout</mat-icon>
-        <span>Cerrar sesión</span>
-      </button>
-    </mat-menu>
-  </ng-container>
+        <button mat-menu-item (click)="logout()">
+          <mat-icon>logout</mat-icon>
+          <span>Cerrar sesion</span>
+        </button>
+      </mat-menu>
+    }
+  </div>
 </mat-toolbar>
 
-<main
-  class="app-route-stage"
-  [class.app-route-stage--auth]="isAuthRoute()"
-  [class.app-route-stage--main]="!isAuthRoute()"
->
+<main class="app-route-stage" [class.app-route-stage--auth]="isAuthRoute()" [class.app-route-stage--main]="!isAuthRoute()">
   <router-outlet></router-outlet>
 </main>
+

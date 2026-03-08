@@ -1,0 +1,42 @@
+﻿.not-found-shell {
+  max-width: 960px;
+  padding-top: 26px;
+  padding-bottom: 30px;
+}
+
+.not-found-card {
+  max-width: 760px;
+  border: 1px solid rgba(15, 23, 42, 0.1) !important;
+  background:
+    radial-gradient(circle at 90% 12%, rgba(255, 197, 64, 0.2), transparent 34%),
+    radial-gradient(circle at 10% 10%, rgba(89, 161, 255, 0.14), transparent 30%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(248, 251, 255, 0.9));
+}
+
+.not-found-code {
+  font-size: clamp(2.6rem, 10vw, 4.1rem);
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  color: #0f172a;
+}
+
+.not-found-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.74rem;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+:host-context(body[data-theme='dark']) .not-found-card {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  background:
+    radial-gradient(circle at 90% 12%, rgba(255, 194, 65, 0.16), transparent 34%),
+    radial-gradient(circle at 10% 10%, rgba(96, 165, 250, 0.14), transparent 30%),
+    linear-gradient(145deg, rgba(8, 20, 38, 0.95), rgba(12, 24, 43, 0.9));
+}
+
+:host-context(body[data-theme='dark']) .not-found-code {
+  color: #e2e8f0;
+}

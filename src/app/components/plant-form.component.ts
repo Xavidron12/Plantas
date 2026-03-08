@@ -1,4 +1,14 @@
-import { Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
+﻿import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  untracked,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Plant } from '../models/plant.model';
 import { GeolocationService } from '../core/geolocation.service';
@@ -16,12 +26,11 @@ type SavePayload = {
   selector: 'app-plant-form',
   imports: [CommonModule],
   template: `
-    <div class="card shadow-sm">
+    <div class="card shadow-sm plant-form-card">
       <div class="card-body">
         <h3 class="mb-3">{{ title() }}</h3>
 
         <div class="d-grid gap-3">
-
           <div>
             <label class="form-label">Nombre</label>
             <input
@@ -29,15 +38,13 @@ type SavePayload = {
               [value]="name()"
               (input)="name.set(($any($event.target).value || '').toString())"
               (blur)="touch('name')"
-              placeholder="Ej: Planta Xavi 1"
+              placeholder="Ej: Planta Norte 1"
             />
-            <div class="text-danger small mt-1" *ngIf="touchedName() && nameError()">
-              {{ nameError() }}
-            </div>
+            <div class="text-danger small mt-1" *ngIf="touchedName() && nameError()">{{ nameError() }}</div>
           </div>
 
           <div>
-            <label class="form-label">Descripción</label>
+            <label class="form-label">Descripcion</label>
             <textarea
               class="form-control"
               rows="2"
@@ -57,9 +64,7 @@ type SavePayload = {
                 (input)="lat.set(toNumber($any($event.target).value))"
                 (blur)="touch('lat')"
               />
-              <div class="text-danger small mt-1" *ngIf="touchedLat() && latError()">
-                {{ latError() }}
-              </div>
+              <div class="text-danger small mt-1" *ngIf="touchedLat() && latError()">{{ latError() }}</div>
             </div>
 
             <div class="col">
@@ -71,19 +76,12 @@ type SavePayload = {
                 (input)="lng.set(toNumber($any($event.target).value))"
                 (blur)="touch('lng')"
               />
-              <div class="text-danger small mt-1" *ngIf="touchedLng() && lngError()">
-                {{ lngError() }}
-              </div>
+              <div class="text-danger small mt-1" *ngIf="touchedLng() && lngError()">{{ lngError() }}</div>
             </div>
           </div>
 
-          <button
-            type="button"
-            class="btn btn-outline-secondary"
-            (click)="useLocation()"
-            [disabled]="locating()"
-          >
-            {{ locating() ? 'Obteniendo ubicación...' : 'Usar mi ubicación' }}
+          <button type="button" class="btn btn-outline-secondary" (click)="useLocation()" [disabled]="locating()">
+            {{ locating() ? 'Obteniendo ubicacion...' : 'Usar mi ubicacion' }}
           </button>
 
           <div>
@@ -92,12 +90,12 @@ type SavePayload = {
             <div class="form-text">Se sube a Supabase Storage.</div>
 
             <div class="mt-2" *ngIf="previewUrl()">
-              <img [src]="previewUrl()" class="img-fluid rounded border" style="max-height: 180px;">
+              <img [src]="previewUrl()" class="img-fluid rounded border" style="max-height: 180px" />
             </div>
 
             <div class="mt-2" *ngIf="!previewUrl() && currentPhotoUrl()">
               <div class="small text-muted mb-1">Foto actual:</div>
-              <img [src]="currentPhotoUrl()!" class="img-fluid rounded border" style="max-height: 180px;">
+              <img [src]="currentPhotoUrl()!" class="img-fluid rounded border" style="max-height: 180px" />
             </div>
           </div>
 
@@ -106,24 +104,26 @@ type SavePayload = {
               Guardar planta
             </button>
 
-            <button
-              class="btn btn-outline-secondary"
-              type="button"
-              (click)="cancel.emit()"
-              *ngIf="isEdit()"
-            >
+            <button class="btn btn-outline-secondary" type="button" (click)="cancel.emit()" *ngIf="isEdit()">
               Cancelar
             </button>
           </div>
 
-          <div class="alert alert-danger mt-2 mb-0 py-2" *ngIf="error()">
-            {{ error() }}
-          </div>
-
+          <div class="alert alert-danger mt-2 mb-0 py-2" *ngIf="error()">{{ error() }}</div>
         </div>
       </div>
     </div>
   `,
+  styles: `
+    .plant-form-card {
+      border: 1px solid rgba(15, 23, 42, 0.1);
+    }
+
+    :host-context(body[data-theme='dark']) .plant-form-card {
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlantFormComponent {
   private geo = inject(GeolocationService);
@@ -135,25 +135,25 @@ export class PlantFormComponent {
   locating = signal(false);
   isEdit = signal(false);
 
-  // Campos del formulario
   name = signal('');
   description = signal('');
   lat = signal(0);
   lng = signal(0);
 
-  // Estado de la foto
   photoFile = signal<File | null>(null);
-  previewUrl = signal<string>('');
+  previewUrl = signal('');
   currentPhotoUrl = signal<string | null>(null);
 
-  // Flags para mostrar errores cuando se toque el campo
-  private touched = signal<{ name: boolean; lat: boolean; lng: boolean }>({ name: false, lat: false, lng: false });
+  private touched = signal<{ name: boolean; lat: boolean; lng: boolean }>({
+    name: false,
+    lat: false,
+    lng: false,
+  });
 
   touchedName = computed(() => this.touched().name);
   touchedLat = computed(() => this.touched().lat);
   touchedLng = computed(() => this.touched().lng);
 
-  // Validaciones del formulario
   nameError = computed(() => {
     const v = this.name().trim();
     if (!v) return 'El nombre es obligatorio.';
@@ -163,21 +163,19 @@ export class PlantFormComponent {
 
   latError = computed(() => {
     const v = this.lat();
-    if (!Number.isFinite(v)) return 'Latitud inválida.';
-    if (v < -90 || v > 90) return 'Latitud inválida (-90 a 90).';
+    if (!Number.isFinite(v)) return 'Latitud invalida.';
+    if (v < -90 || v > 90) return 'Latitud invalida (-90 a 90).';
     return '';
   });
 
   lngError = computed(() => {
     const v = this.lng();
-    if (!Number.isFinite(v)) return 'Longitud inválida.';
-    if (v < -180 || v > 180) return 'Longitud inválida (-180 a 180).';
+    if (!Number.isFinite(v)) return 'Longitud invalida.';
+    if (v < -180 || v > 180) return 'Longitud invalida (-180 a 180).';
     return '';
   });
 
-  isValid = computed(() => {
-    return !this.nameError() && !this.latError() && !this.lngError();
-  });
+  isValid = computed(() => !this.nameError() && !this.latError() && !this.lngError());
 
   save = output<SavePayload>();
   cancel = output<void>();
@@ -197,16 +195,13 @@ export class PlantFormComponent {
     if (!p) {
       this.isEdit.set(false);
       this.title.set('Nueva planta');
-
       this.name.set('');
       this.description.set('');
       this.lat.set(0);
       this.lng.set(0);
-
       this.photoFile.set(null);
       this.clearPreview();
       this.currentPhotoUrl.set(null);
-
       this.touched.set({ name: false, lat: false, lng: false });
       this.error.set('');
       return;
@@ -214,16 +209,13 @@ export class PlantFormComponent {
 
     this.isEdit.set(true);
     this.title.set('Editar planta');
-
-    this.name.set(((p as any).name ?? '').toString());
-    this.description.set(((p as any).description ?? '').toString());
-    this.lat.set(Number((p as any).lat ?? 0));
-    this.lng.set(Number((p as any).lng ?? 0));
-
+    this.name.set((p.name ?? '').toString());
+    this.description.set((p.description ?? '').toString());
+    this.lat.set(Number(p.lat ?? 0));
+    this.lng.set(Number(p.lng ?? 0));
     this.photoFile.set(null);
     this.clearPreview();
-    this.currentPhotoUrl.set((p as any).photoUrl ?? null);
-
+    this.currentPhotoUrl.set(p.photoUrl ?? null);
     this.touched.set({ name: false, lat: false, lng: false });
     this.error.set('');
   }
@@ -237,7 +229,7 @@ export class PlantFormComponent {
     this.touched.set({ name: true, lat: true, lng: true });
   }
 
-  toNumber(v: any): number {
+  toNumber(v: unknown): number {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
   }
@@ -274,7 +266,6 @@ export class PlantFormComponent {
   submit() {
     this.error.set('');
     this.touchAll();
-
     if (!this.isValid()) return;
 
     this.save.emit({

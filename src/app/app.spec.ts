@@ -1,12 +1,21 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { AppComponent } from './app';
+import { AuthService } from './core/auth.service';
 
 describe('AppComponent', () => {
+  const authMock: Pick<AuthService, 'user' | 'isLoggedIn' | 'isAdmin' | 'logout'> = {
+    user: signal(null),
+    isLoggedIn: signal(false),
+    isAdmin: signal(false),
+    logout: async () => {},
+  };
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), { provide: AuthService, useValue: authMock }],
     }).compileComponents();
   });
 

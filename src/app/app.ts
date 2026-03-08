@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from './core/auth.service';
 import { MATERIAL } from './shared/material';
@@ -7,15 +7,13 @@ import { MATERIAL } from './shared/material';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, ...MATERIAL],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, ...MATERIAL],
   templateUrl: './app.html',
 })
 export class AppComponent {
   private auth = inject(AuthService);
   private router = inject(Router);
-
-  // lo dejamos por compatibilidad (aunque ya no es necesario con mat-menu)
-  menuOpen = signal(false);
+  private readonly themeStorageKey = 'solar-theme';
 
   user = computed(() => this.auth.user());
   isLogged = computed(() => this.auth.isLoggedIn());
@@ -29,10 +27,13 @@ export class AppComponent {
 
   theme = signal<'light' | 'dark'>('light');
 
+  constructor() {
+    this.applyTheme(this.detectInitialTheme());
+  }
+
   toggleTheme() {
     const next = this.theme() === 'light' ? 'dark' : 'light';
-    this.theme.set(next);
-    document.body.setAttribute('data-theme', next);
+    this.applyTheme(next);
   }
 
   isAuthRoute() {
@@ -40,17 +41,33 @@ export class AppComponent {
     return cleanUrl === '/login' || cleanUrl === '/register';
   }
 
-  toggleMenu() {
-    this.menuOpen.set(!this.menuOpen());
-  }
-
-  closeMenu() {
-    this.menuOpen.set(false);
-  }
-
   async logout() {
     await this.auth.logout();
-    this.closeMenu();
     this.router.navigateByUrl('/login');
+  }
+
+  private detectInitialTheme(): 'light' | 'dark' {
+    if (typeof window === 'undefined') return 'light';
+
+    const saved = window.localStorage.getItem(this.themeStorageKey);
+    if (saved === 'light' || saved === 'dark') return saved;
+
+    const prefersDark =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    return prefersDark ? 'dark' : 'light';
+  }
+
+  private applyTheme(theme: 'light' | 'dark') {
+    this.theme.set(theme);
+
+    if (typeof document !== 'undefined') {
+      document.body.setAttribute('data-theme', theme);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(this.themeStorageKey, theme);
+    }
   }
 }

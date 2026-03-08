@@ -29,6 +29,9 @@
               "src/material-theme.scss",
               "src/styles.css",
               "node_modules/leaflet/dist/leaflet.css"
+            ],
+            "allowedCommonJsDependencies": [
+              "leaflet"
             ]
           },
           "configurations": {

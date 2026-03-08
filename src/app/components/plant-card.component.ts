@@ -1,5 +1,5 @@
-import { CommonModule } from '@angular/common';
-import { Component, input, output } from '@angular/core';
+﻿import { CommonModule } from '@angular/common';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { Plant } from '../models/plant.model';
@@ -10,35 +10,18 @@ import { MATERIAL } from '../shared/material';
   selector: 'app-plant-card',
   imports: [CommonModule, RouterLink, ...MATERIAL],
   template: `
-    <mat-card style="height:100%;">
-      <div *ngIf="photoUrl(); else noPhoto" style="aspect-ratio:16/9; background:#f3f3f3;">
-        <img
-          [src]="photoUrl()!"
-          style="width:100%; height:100%; object-fit:cover;"
-          alt="Foto planta"
-        />
-      </div>
-
-      <ng-template #noPhoto>
-        <div
-          style="
-            aspect-ratio:16/9;
-            background:#f3f3f3;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            opacity:0.75;
-          "
-        >
-          Sin foto
+    <mat-card class="plant-card">
+      @if (photoUrl()) {
+        <div class="plant-card__media">
+          <img [src]="photoUrl()!" class="plant-card__image" alt="Foto planta" />
         </div>
-      </ng-template>
+      } @else {
+        <div class="plant-card__media plant-card__media--empty">Sin foto</div>
+      }
 
-      <mat-card-content style="display:flex; flex-direction:column; gap:8px; padding-top:12px;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-          <div style="font-weight:600; font-size:16px; line-height:1.2;">
-            {{ plant().name }}
-          </div>
+      <mat-card-content class="plant-card__content">
+        <div class="plant-card__heading">
+          <div class="plant-card__title">{{ plant().name }}</div>
 
           <button
             mat-icon-button
@@ -46,24 +29,93 @@ import { MATERIAL } from '../shared/material';
             (click)="toggleFav.emit(plant().id)"
             [attr.aria-label]="isFav() ? 'Quitar de favoritos' : 'Marcar favorito'"
           >
-            <mat-icon [style.color]="isFav() ? '#ff3b30' : 'rgba(156,163,175,0.9)'">
+            <mat-icon [style.color]="isFav() ? '#dc2626' : 'rgba(100,116,139,0.9)'">
               {{ isFav() ? 'favorite' : 'favorite_border' }}
             </mat-icon>
           </button>
         </div>
 
-        <div style="opacity:0.78;" [title]="plant().description ?? ''">
+        <div class="plant-card__description" [title]="plant().description ?? ''">
           {{ shortDesc(plant().description ?? '') }}
         </div>
       </mat-card-content>
 
-      <mat-card-actions align="end">
-        <a mat-stroked-button color="primary" [routerLink]="['/plants', plant().id]">
-          Información
-        </a>
+      <mat-card-actions align="end" class="plant-card__actions">
+        <a mat-stroked-button color="primary" [routerLink]="['/plants', plant().id]">Informacion</a>
       </mat-card-actions>
     </mat-card>
   `,
+  styles: `
+    .plant-card {
+      height: 100%;
+      overflow: hidden;
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .plant-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 18px 35px rgba(15, 23, 42, 0.2);
+    }
+
+    .plant-card__media {
+      aspect-ratio: 16 / 9;
+      background: linear-gradient(140deg, #f6f8fb, #e9eef4);
+    }
+
+    .plant-card__media--empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      letter-spacing: 0.02em;
+      font-weight: 600;
+    }
+
+    .plant-card__image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .plant-card__content {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 12px;
+    }
+
+    .plant-card__heading {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .plant-card__title {
+      font-weight: 700;
+      font-size: 1.02rem;
+      line-height: 1.25;
+    }
+
+    .plant-card__description {
+      opacity: 0.82;
+      min-height: 44px;
+    }
+
+    .plant-card__actions {
+      padding-top: 0;
+    }
+
+    :host-context(body[data-theme='dark']) .plant-card__media {
+      background: linear-gradient(140deg, #0f172a, #111b32);
+    }
+
+    :host-context(body[data-theme='dark']) .plant-card__media--empty {
+      color: #cbd5e1;
+    }
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlantCardComponent {
   plant = input.required<Plant>();
@@ -74,7 +126,7 @@ export class PlantCardComponent {
 
   shortDesc(desc: string): string {
     const s = (desc || '').trim();
-    if (!s) return '—';
-    return s.length > 70 ? s.slice(0, 70) + '…' : s;
+    if (!s) return '-';
+    return s.length > 70 ? s.slice(0, 70) + '...' : s;
   }
 }

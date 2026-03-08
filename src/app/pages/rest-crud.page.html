@@ -1,0 +1,155 @@
+﻿<div class="rest-shell container py-3">
+  <section class="card shadow-sm rest-hero mb-3">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+        <div>
+          <h1 class="h4 mb-1">CRUD REST (HTTP)</h1>
+          <div class="text-muted small">
+            Demo con <code>HttpClient</code> + interceptor usando JSONPlaceholder.
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-primary" type="button" (click)="loadPosts()" [disabled]="loading()">
+            {{ loading() ? 'Cargando...' : 'Recargar lista' }}
+          </button>
+          <a class="btn btn-outline-secondary" routerLink="/admin">Volver admin</a>
+        </div>
+      </div>
+
+      <div class="rest-hero__stats mt-3">
+        <div class="rest-stat">
+          <div class="rest-stat__value">{{ posts().length }}</div>
+          <div class="rest-stat__label">Posts cargados</div>
+        </div>
+        <div class="rest-stat">
+          <div class="rest-stat__value">{{ editing() ? 'Edicion' : 'Alta' }}</div>
+          <div class="rest-stat__label">Modo formulario</div>
+        </div>
+        <div class="rest-stat rest-stat--wide">
+          <div class="rest-stat__value rest-stat__value--text">{{ selectedSummary() }}</div>
+          <div class="rest-stat__label">Post activo</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  @if (error()) {
+    <div class="alert alert-danger py-2">{{ error() }}</div>
+  }
+
+  @if (message()) {
+    <div class="alert alert-success py-2">{{ message() }}</div>
+  }
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h2 class="h6 mb-0">Read (lista)</h2>
+            <span class="badge text-bg-secondary">{{ posts().length }} items</span>
+          </div>
+
+          <div class="text-muted small mb-3">Haz clic en una fila para cargar su detalle (GET /:id).</div>
+
+          @if (posts().length > 0) {
+            <div class="list-group rest-list">
+              @for (p of posts(); track p.id) {
+                <button
+                  type="button"
+                  class="list-group-item list-group-item-action text-start"
+                  [class.active]="selectedId() === p.id"
+                  (click)="selectPost(p.id)"
+                >
+                  <div class="fw-semibold">#{{ p.id }} - {{ p.title }}</div>
+                  <div class="small" [class.text-white]="selectedId() === p.id" [class.text-muted]="selectedId() !== p.id">
+                    userId={{ p.userId }}
+                  </div>
+                </button>
+              }
+            </div>
+          } @else {
+            <div class="alert alert-warning mb-0">No hay datos cargados aun.</div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+            <h2 class="h6 mb-0">{{ editing() ? 'Update (PUT)' : 'Create (POST)' }}</h2>
+            <button class="btn btn-sm btn-outline-secondary" type="button" (click)="resetForm()">
+              Limpiar formulario
+            </button>
+          </div>
+
+          <form class="row g-3" (ngSubmit)="save()">
+            <div class="col-12 col-md-4">
+              <label class="form-label">userId</label>
+              <input
+                class="form-control"
+                type="number"
+                name="userId"
+                min="1"
+                [ngModel]="formUserId()"
+                (ngModelChange)="formUserId.set(toPositiveInt($event))"
+                required
+              />
+            </div>
+
+            <div class="col-12 col-md-8">
+              <label class="form-label">Titulo</label>
+              <input
+                class="form-control"
+                type="text"
+                name="title"
+                [ngModel]="formTitle()"
+                (ngModelChange)="formTitle.set(($event ?? '').toString())"
+                required
+                minlength="3"
+              />
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Contenido</label>
+              <textarea
+                class="form-control"
+                rows="5"
+                name="body"
+                [ngModel]="formBody()"
+                (ngModelChange)="formBody.set(($event ?? '').toString())"
+                required
+                minlength="5"
+              ></textarea>
+            </div>
+
+            <div class="col-12 d-flex flex-wrap gap-2">
+              <button class="btn btn-success" type="submit" [disabled]="saving() || !formValid()">
+                {{ saving() ? 'Guardando...' : (editing() ? 'Actualizar' : 'Crear') }}
+              </button>
+
+              @if (editing()) {
+                <button class="btn btn-outline-danger" type="button" (click)="deleteSelected()" [disabled]="saving()">
+                  Delete (DELETE)
+                </button>
+              }
+            </div>
+          </form>
+        </div>
+      </div>
+
+      @if (selectedPost(); as post) {
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h2 class="h6 mb-2">Read (detalle)</h2>
+            <div class="small text-muted mb-2">Cargado con <code>GET /posts/:id</code></div>
+            <pre class="mb-0 small rest-json">{{ post | json }}</pre>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>

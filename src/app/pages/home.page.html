@@ -1,0 +1,95 @@
+﻿<div class="home-shell container py-4">
+  <section class="card shadow-sm home-hero overflow-hidden">
+    <div class="home-hero__glow" aria-hidden="true"></div>
+
+    <div class="card-body p-4 p-xl-5">
+      <div class="row g-4 align-items-center">
+        <div class="col-12 col-xl-7">
+          <p class="home-hero__eyebrow mb-2">Plataforma Solar</p>
+          <h1 class="home-hero__title mb-3">Control profesional para operaciones solares</h1>
+          <p class="home-hero__subtitle mb-4">
+            Aplicacion Angular con Supabase para gestionar plantas, registros en tiempo real,
+            roles y almacenamiento de imagenes.
+          </p>
+
+          @if (isLogged()) {
+            <div class="home-hero__session mb-3">
+              Sesion activa: <strong>{{ userName() || userEmail() }}</strong>
+              <span class="badge ms-2" [class.bg-dark]="isAdmin()" [class.bg-secondary]="!isAdmin()">
+                {{ userRole() }}
+              </span>
+            </div>
+          }
+
+          <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-primary" [routerLink]="heroPrimaryLink()">{{ heroPrimaryText() }}</a>
+            <a class="btn btn-outline-secondary" [routerLink]="heroSecondaryLink()">{{ heroSecondaryText() }}</a>
+
+            @if (isAdmin()) {
+              <a class="btn btn-outline-dark" routerLink="/admin">Ir a administracion</a>
+            }
+          </div>
+        </div>
+
+        <div class="col-12 col-xl-5">
+          <div class="home-kpis">
+            @for (kpi of visibleKpis(); track kpi.label) {
+              <article class="home-kpi">
+                <div class="home-kpi__value">{{ kpi.value }}</div>
+                <div class="home-kpi__label">{{ kpi.label }}</div>
+                <div class="home-kpi__desc">{{ kpi.description }}</div>
+              </article>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  @if (quickLinks().length > 0) {
+    <section class="mt-4">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h5 mb-0">Accesos rapidos</h2>
+      </div>
+
+      <div class="row g-3">
+        @for (link of quickLinks(); track link.title) {
+          <div class="col-12 col-md-6 col-xl-3">
+            <a class="card home-link h-100 shadow-sm text-decoration-none" [routerLink]="link.route">
+              <div class="card-body">
+                <div
+                  class="home-link__badge"
+                  [class.home-link__badge--primary]="link.tone === 'primary'"
+                  [class.home-link__badge--secondary]="link.tone === 'secondary'"
+                  [class.home-link__badge--dark]="link.tone === 'dark'"
+                >
+                  {{ link.badge }}
+                </div>
+                <h3 class="h6 mt-3 mb-2">{{ link.title }}</h3>
+                <p class="mb-0 text-muted small">{{ link.description }}</p>
+              </div>
+            </a>
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  <section class="mt-4">
+    <article class="card shadow-sm home-stack">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h2 class="h5 mb-0">Stack tecnico</h2>
+          <span class="small text-muted">Implementacion actual del proyecto</span>
+        </div>
+
+        <div class="home-stack__chips">
+          @for (item of stack; track item) {
+            <span class="badge home-stack__chip">{{ item }}</span>
+          }
+        </div>
+      </div>
+    </article>
+  </section>
+</div>
+

@@ -14,6 +14,14 @@ type PlantRow = {
   created_at: string | null;
 };
 
+type PlantRowInput = {
+  name?: string;
+  description?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  photo_url?: string | null;
+};
+
 function sameList(a: Plant[], b: Plant[]) {
   if (a === b) return true;
   if (a.length !== b.length) return false;
@@ -56,14 +64,14 @@ export class PlantsService {
   private toPlant(row: PlantRow): Plant {
     return {
       id: row.id,
-      ownerId: row.owner_id,
-      name: row.name,
+      ownerId: row.owner_id ?? '',
+      name: row.name ?? '',
       description: row.description,
-      lat: row.lat,
-      lng: row.lng,
+      lat: row.lat ?? 0,
+      lng: row.lng ?? 0,
       photoUrl: row.photo_url,
-      createdAt: row.created_at,
-    } as Plant;
+      createdAt: row.created_at ?? '',
+    };
   }
 
   private toRow(partial: {
@@ -72,15 +80,14 @@ export class PlantsService {
     lat?: number | null;
     lng?: number | null;
     photoUrl?: string | null;
-  }): Record<string, any> {
-    const p = partial ?? {};
-    const row: any = {};
+  }): PlantRowInput {
+    const row: PlantRowInput = {};
 
-    if ('name' in p) row.name = p.name;
-    if ('description' in p) row.description = p.description ?? null;
-    if ('lat' in p) row.lat = p.lat;
-    if ('lng' in p) row.lng = p.lng;
-    if ('photoUrl' in p) row.photo_url = p.photoUrl ?? null;
+    if ('name' in partial) row.name = partial.name;
+    if ('description' in partial) row.description = partial.description ?? null;
+    if ('lat' in partial) row.lat = partial.lat;
+    if ('lng' in partial) row.lng = partial.lng;
+    if ('photoUrl' in partial) row.photo_url = partial.photoUrl ?? null;
 
     return row;
   }
@@ -197,11 +204,11 @@ export class PlantsService {
 
   async update(id: string, data: Partial<Plant>): Promise<Plant> {
     const payload = this.toRow({
-      name: (data as any).name,
-      description: (data as any).description,
-      lat: (data as any).lat,
-      lng: (data as any).lng,
-      photoUrl: (data as any).photoUrl,
+      name: data.name,
+      description: data.description,
+      lat: data.lat,
+      lng: data.lng,
+      photoUrl: data.photoUrl,
     });
 
     const { data: updated, error } = await this.sb.supabase

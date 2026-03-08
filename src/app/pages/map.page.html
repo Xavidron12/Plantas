@@ -1,0 +1,51 @@
+﻿<div class="map-shell container">
+  <section class="card shadow-sm map-hero">
+    <div class="card-body p-4">
+      <div class="map-hero__top">
+        <div>
+          <h1 class="mb-1">Mapa de plantas</h1>
+          <div class="text-muted">{{ subtitle() }}</div>
+        </div>
+
+        <div class="map-hero__actions">
+          <a class="btn btn-outline-secondary" routerLink="/plants">Volver</a>
+          <button class="btn btn-outline-primary" type="button" (click)="reload()" [disabled]="loading()">
+            Recargar
+          </button>
+        </div>
+      </div>
+
+      <div class="map-stats mt-3">
+        <article class="map-stat">
+          <div class="map-stat__value">{{ markerCount() }}</div>
+          <div class="map-stat__label">Marcadores</div>
+        </article>
+
+        <article class="map-stat">
+          <div class="map-stat__value">{{ plants().length }}</div>
+          <div class="map-stat__label">Plantas cargadas</div>
+        </article>
+
+        <article class="map-stat map-stat--wide">
+          <div class="map-stat__value map-stat__value--text">{{ mapStatus() }}</div>
+          <div class="map-stat__label">Estado de mapa</div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  @if (loading()) {
+    <div class="alert alert-info">Cargando mapa...</div>
+  }
+
+  @if (error()) {
+    <div class="alert alert-danger">{{ error() }}</div>
+  }
+
+  <section class="card shadow-sm map-stage">
+    <div class="card-body p-0">
+      <div id="map" class="map-canvas"></div>
+    </div>
+  </section>
+</div>
+

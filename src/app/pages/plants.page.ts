@@ -1,4 +1,13 @@
-import { Component, computed, effect, inject, signal, OnInit, DestroyRef } from '@angular/core';
+﻿import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -14,103 +23,29 @@ import { PlantFormComponent } from '../components/plant-form.component';
 import { MATERIAL } from '../shared/material';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 
+type PlantFormPayload = {
+  name: string;
+  description: string;
+  lat: number;
+  lng: number;
+  photoFile: File | null;
+};
+
+type PlantSort = 'recent' | 'nameAsc' | 'nameDesc' | 'favoritesFirst';
+
 @Component({
   standalone: true,
-  imports: [CommonModule, FormsModule, PlantCardComponent, PlantFormComponent, ...MATERIAL, MatCheckboxModule],
-  template: `
-    <div style="max-width:1200px; margin:0 auto; padding:24px;">
-      <!-- Header -->
-      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:16px;">
-        <div>
-          <h2 style="margin:0;">Mis plantas</h2>
-          <div style="opacity:0.75;">Listado de tus plantas (con favoritos)</div>
-        </div>
-
-        <button mat-raised-button color="primary" type="button" (click)="openCreate()" *ngIf="!showForm()">
-          Nueva planta
-        </button>
-      </div>
-
-      <!-- Loading -->
-      <mat-card *ngIf="loading()" style="margin-bottom:16px;">
-        <mat-card-content>Cargando...</mat-card-content>
-      </mat-card>
-
-      <!-- Error -->
-      <mat-card *ngIf="error()" style="margin-bottom:16px; border:1px solid #b00020;">
-        <mat-card-content>
-          <mat-error>{{ error() }}</mat-error>
-        </mat-card-content>
-      </mat-card>
-
-      <!-- FORM NUEVA PLANTA -->
-      <div style="margin-bottom:16px;" *ngIf="!loading() && showForm()">
-        <app-plant-form
-          [initial]="null"
-          (save)="createFromForm($event)"
-          (cancel)="closeCreate()"
-        />
-      </div>
-
-      <!-- BUSCADOR / FILTROS -->
-      <mat-card style="margin-bottom:16px;" *ngIf="!loading() && !showForm()">
-        <mat-card-content>
-          <form #f="ngForm" (ngSubmit)="$event.preventDefault()" style="display:grid; gap:12px;">
-            <mat-form-field appearance="outline">
-              <mat-label>Buscar</mat-label>
-              <input
-                matInput
-                name="term"
-                [ngModel]="term()"
-                (ngModelChange)="term.set($event)"
-                placeholder="Buscar planta..."
-                minlength="2"
-              />
-              <mat-hint>Escribe al menos 2 caracteres para buscar (o deja vacío para ver todas).</mat-hint>
-
-              <div style="font-size:12px; margin-top:6px; color:#b00020;"
-                   *ngIf="f.controls['term']?.touched && f.controls['term']?.invalid">
-                El texto de búsqueda debe tener al menos 2 caracteres.
-              </div>
-            </mat-form-field>
-
-            <mat-checkbox
-              name="onlyFavs"
-              [ngModel]="onlyFavs()"
-              (ngModelChange)="onlyFavs.set($event)"
-            >
-              Solo favoritos
-            </mat-checkbox>
-
-            <div>
-              <button mat-stroked-button type="button" (click)="refresh()">
-                Recargar
-              </button>
-            </div>
-          </form>
-        </mat-card-content>
-      </mat-card>
-
-      <!-- Empty -->
-      <mat-card *ngIf="!loading() && !error() && !showForm() && filteredPlants().length === 0">
-        <mat-card-content>No hay plantas para mostrar.</mat-card-content>
-      </mat-card>
-
-      <!-- Grid -->
-      <div
-        style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px;"
-        *ngIf="!loading() && !error() && !showForm() && filteredPlants().length > 0"
-      >
-        <app-plant-card
-          *ngFor="let p of filteredPlants()"
-          [plant]="p"
-          [photoUrl]="photoUrlOf(p)"
-          [isFav]="isFav(p.id)"
-          (toggleFav)="toggleFav($event)"
-        />
-      </div>
-    </div>
-  `,
+  imports: [
+    CommonModule,
+    FormsModule,
+    PlantCardComponent,
+    PlantFormComponent,
+    ...MATERIAL,
+    MatCheckboxModule,
+  ],
+  templateUrl: './plants.page.html',
+  styleUrl: './plants.page.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlantsPage implements OnInit {
   private plantsService = inject(PlantsService);
@@ -121,9 +56,12 @@ export class PlantsPage implements OnInit {
 
   term = signal(this.store.snapshot().plants.filters.term);
   onlyFavs = signal(this.store.snapshot().plants.filters.onlyFavs);
+  sortBy = signal<PlantSort>('recent');
 
   loading = signal(true);
+  refreshing = signal(false);
   error = signal('');
+  lastSyncedAt = signal<Date | null>(null);
 
   plants = signal<Plant[]>([]);
   favIds = signal<Set<string>>(new Set());
@@ -131,14 +69,18 @@ export class PlantsPage implements OnInit {
   showForm = signal(false);
   private ownerId = '';
 
-  constructor() {
-    effect(() => {
-      this.store.dispatch({
-        type: 'plants/setFilters',
-        payload: { term: this.term(), onlyFavs: this.onlyFavs() },
-      });
-    });
-  }
+  currentUserName = computed(() => {
+    const u = this.auth.user();
+    const display = (u?.name ?? '').trim() || (u?.email ?? '').trim();
+    return display || 'operador';
+  });
+
+  totalPlants = computed(() => this.plants().length);
+
+  favoritesCount = computed(() => {
+    const favs = this.favIds();
+    return this.plants().reduce((total, p) => total + (favs.has(p.id) ? 1 : 0), 0);
+  });
 
   filteredPlants = computed(() => {
     const raw = this.term();
@@ -154,20 +96,89 @@ export class PlantsPage implements OnInit {
 
     if (onlyFavs) list = list.filter(p => favs.has(p.id));
 
-    return list;
+    const sorted = [...list];
+
+    switch (this.sortBy()) {
+      case 'nameAsc':
+        sorted.sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'es'));
+        break;
+
+      case 'nameDesc':
+        sorted.sort((a, b) => (b.name ?? '').localeCompare(a.name ?? '', 'es'));
+        break;
+
+      case 'favoritesFirst':
+        sorted.sort((a, b) => {
+          const fa = favs.has(a.id) ? 1 : 0;
+          const fb = favs.has(b.id) ? 1 : 0;
+          if (fa !== fb) return fb - fa;
+          return (a.name ?? '').localeCompare(b.name ?? '', 'es');
+        });
+        break;
+
+      default:
+        sorted.sort((a, b) => {
+          const ta = Date.parse(a.createdAt || '');
+          const tb = Date.parse(b.createdAt || '');
+          return tb - ta;
+        });
+        break;
+    }
+
+    return sorted;
   });
+
+  shownCount = computed(() => this.filteredPlants().length);
+
+  filterActive = computed(() => {
+    const t = this.term().trim();
+    return this.onlyFavs() || t.length >= 2 || t.length > 0 || this.sortBy() !== 'recent';
+  });
+
+  searchHint = computed(() => {
+    const t = this.term().trim();
+
+    if (!this.onlyFavs() && !t) {
+      return 'Mostrando todas tus plantas.';
+    }
+
+    if (t.length > 0 && t.length < 2) {
+      return 'Escribe al menos 2 caracteres para aplicar busqueda.';
+    }
+
+    return `Mostrando ${this.shownCount()} de ${this.totalPlants()} plantas.`;
+  });
+
+  sortLabel = computed(() => {
+    switch (this.sortBy()) {
+      case 'nameAsc':
+        return 'Nombre (A-Z)';
+      case 'nameDesc':
+        return 'Nombre (Z-A)';
+      case 'favoritesFirst':
+        return 'Favoritas primero';
+      default:
+        return 'Mas recientes';
+    }
+  });
+
+  lastSyncedLabel = computed(() => {
+    const d = this.lastSyncedAt();
+    if (!d) return 'Sincronizacion pendiente';
+    return `Ultima sincronizacion: ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  });
+
+  constructor() {
+    effect(() => {
+      this.store.dispatch({
+        type: 'plants/setFilters',
+        payload: { term: this.term(), onlyFavs: this.onlyFavs() },
+      });
+    });
+  }
 
   async ngOnInit() {
     await this.init();
-  }
-
-  private async waitForUser(maxMs = 10000) {
-    const start = Date.now();
-    while (!this.auth.user()) {
-      if (Date.now() - start > maxMs) return null;
-      await new Promise(r => setTimeout(r, 100));
-    }
-    return this.auth.user();
   }
 
   private async init() {
@@ -175,9 +186,9 @@ export class PlantsPage implements OnInit {
     this.error.set('');
 
     try {
-      const user = await this.waitForUser();
+      const user = await this.auth.ensureSession();
       if (!user) {
-        this.error.set('No hay sesión. Vuelve a iniciar sesión.');
+        this.error.set('No hay sesion. Vuelve a iniciar sesion.');
         return;
       }
 
@@ -197,7 +208,7 @@ export class PlantsPage implements OnInit {
           });
         });
 
-      await this.plantsService.refreshByOwner(this.ownerId);
+      await this.syncPlants();
     } catch (e: any) {
       this.error.set(e?.message ?? String(e));
     } finally {
@@ -214,13 +225,13 @@ export class PlantsPage implements OnInit {
     this.showForm.set(false);
   }
 
-  async createFromForm(payload: {
-    name: string;
-    description: string;
-    lat: number;
-    lng: number;
-    photoFile: File | null;
-  }) {
+  clearFilters() {
+    this.term.set('');
+    this.onlyFavs.set(false);
+    this.sortBy.set('recent');
+  }
+
+  async createFromForm(payload: PlantFormPayload) {
     if (!this.ownerId) return;
 
     this.error.set('');
@@ -239,7 +250,7 @@ export class PlantsPage implements OnInit {
         photoUrl,
       });
 
-      await this.plantsService.refreshByOwner(this.ownerId);
+      await this.syncPlants();
       this.showForm.set(false);
     } catch (e: any) {
       this.error.set(e?.message ?? String(e));
@@ -247,12 +258,21 @@ export class PlantsPage implements OnInit {
   }
 
   async refresh() {
+    await this.syncPlants();
+  }
+
+  private async syncPlants() {
     if (!this.ownerId) return;
     this.error.set('');
+    this.refreshing.set(true);
+
     try {
       await this.plantsService.refreshByOwner(this.ownerId);
+      this.lastSyncedAt.set(new Date());
     } catch (e: any) {
       this.error.set(e?.message ?? String(e));
+    } finally {
+      this.refreshing.set(false);
     }
   }
 
@@ -282,3 +302,4 @@ export class PlantsPage implements OnInit {
     }
   }
 }
+

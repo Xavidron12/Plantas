@@ -60,25 +60,128 @@ hr { border-color: var(--border); }
    ANGULAR MATERIAL
    ============================== */
 
-mat-toolbar {
+.app-toolbar {
   position: sticky;
   top: 0;
-  z-index: 100;
-  background: #ffffff !important;
+  z-index: 120;
+  min-height: 68px;
+  padding: 0 18px;
+  display: flex;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.9) !important;
   color: #111827 !important;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(8px);
 }
 
-body[data-theme="dark"] mat-toolbar {
-  background: #020617 !important;
+.app-brand {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.app-toolbar__spacer {
+  flex: 1 1 auto;
+}
+
+.app-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.app-nav .mat-mdc-button {
+  border-radius: 999px;
+}
+
+.app-nav__link--active {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.app-toolbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-icon-action {
+  width: 40px !important;
+  height: 40px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 999px !important;
+}
+
+.app-user-trigger {
+  position: relative;
+  top: -1px;
+}
+
+.app-avatar {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+}
+
+.app-avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.app-user-menu__header {
+  padding: 12px 16px;
+  max-width: 280px;
+}
+
+.app-user-menu__label {
+  font-size: 12px;
+  opacity: 0.82;
+}
+
+.app-user-menu__email {
+  margin-top: 2px;
+  font-weight: 700;
+}
+
+.app-user-menu__role {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.9;
+  display: flex;
+  gap: 6px;
+}
+
+body[data-theme="dark"] .app-toolbar {
+  background: rgba(2, 6, 23, 0.88) !important;
   color: var(--text) !important;
   border-bottom: 1px solid var(--border);
 }
 
-body[data-theme="dark"] mat-toolbar a,
-body[data-theme="dark"] mat-toolbar button,
-body[data-theme="dark"] mat-toolbar mat-icon {
+body[data-theme="dark"] .app-toolbar a,
+body[data-theme="dark"] .app-toolbar button,
+body[data-theme="dark"] .app-toolbar mat-icon {
   color: var(--text) !important;
+}
+
+body[data-theme="dark"] .app-nav__link--active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+body[data-theme="dark"] .app-avatar {
+  border-color: rgba(255, 255, 255, 0.26);
+}
+
+body[data-theme="dark"] .app-avatar--fallback {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 /* Cards Material */
@@ -239,14 +342,16 @@ body[data-theme="dark"] .form-control::placeholder {
 }
 
 body[data-theme="dark"] .btn-outline-primary,
-body[data-theme="dark"] .btn-outline-secondary {
+body[data-theme="dark"] .btn-outline-secondary,
+body[data-theme="dark"] .btn-outline-dark {
   color: var(--text) !important;
   border-color: rgba(255, 255, 255, 0.35) !important;
   background: rgba(255, 255, 255, 0.05) !important;
 }
 
 body[data-theme="dark"] .btn-outline-primary:hover,
-body[data-theme="dark"] .btn-outline-secondary:hover {
+body[data-theme="dark"] .btn-outline-secondary:hover,
+body[data-theme="dark"] .btn-outline-dark:hover {
   background: rgba(255, 255, 255, 0.12) !important;
 }
 
@@ -551,6 +656,30 @@ body[data-theme="dark"] .sunflower-garden {
 }
 
 @media (max-width: 640px) {
+  .app-toolbar {
+    min-height: 64px;
+    padding: 0 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 6px;
+  }
+
+  .app-brand {
+    font-size: 0.96rem;
+  }
+
+  .app-nav {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .app-toolbar__actions {
+    margin-left: auto;
+  }
+
   .auth-sunflower-page {
     padding-top: 20px;
     padding-bottom: 128px;

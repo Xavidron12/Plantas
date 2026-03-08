@@ -1,0 +1,157 @@
+﻿<div class="profile-shell container">
+  <div class="profile-head">
+    <div>
+      <h1 class="mb-0">Perfil</h1>
+      <div class="text-muted">Gestiona tu cuenta y avatar</div>
+    </div>
+    <a class="btn btn-outline-secondary" routerLink="/plants">Volver</a>
+  </div>
+
+  @if (u()) {
+    <section class="card shadow-sm profile-card">
+      <div class="card-body">
+        <div class="profile-identity">
+          <div class="profile-avatar">
+            @if (displayAvatarUrl()) {
+              <img [src]="displayAvatarUrl()" alt="Avatar de perfil" />
+            } @else {
+              <span>{{ initials() }}</span>
+            }
+          </div>
+
+          <div class="profile-identity__info">
+            <div class="profile-identity__name">{{ u()!.name }}</div>
+            <div class="text-muted small">{{ u()!.email }}</div>
+          </div>
+
+          <span class="badge" [class.bg-dark]="u()!.role === 'admin'" [class.bg-secondary]="u()!.role !== 'admin'">
+            {{ u()!.role }}
+          </span>
+        </div>
+
+        <div class="profile-meta mt-3">
+          <article class="profile-meta__item">
+            <div class="profile-meta__label">Usuario</div>
+            <div class="profile-meta__value">{{ shortUserId() }}</div>
+          </article>
+          <article class="profile-meta__item">
+            <div class="profile-meta__label">Estado</div>
+            <div class="profile-meta__value">Activo</div>
+          </article>
+          <article class="profile-meta__item">
+            <div class="profile-meta__label">Avatar</div>
+            <div class="profile-meta__value">{{ hasAvatar() ? 'Configurado' : 'Sin configurar' }}</div>
+          </article>
+        </div>
+
+        <form [formGroup]="form" (ngSubmit)="save()" class="profile-form mt-4">
+          <section class="profile-block">
+            <h2 class="h6 mb-2">Avatar</h2>
+
+            <input class="form-control" type="file" accept="image/*" (change)="onAvatarSelected($event)" />
+
+            @if (selectedAvatarName()) {
+              <div class="small text-muted mt-2">
+                Archivo seleccionado: {{ selectedAvatarName() }} ({{ selectedAvatarSizeLabel() }})
+              </div>
+            }
+
+            <div class="profile-avatar-preview mt-3" *ngIf="displayAvatarUrl()">
+              <img [src]="displayAvatarUrl()" alt="Vista previa de avatar" />
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+              <button
+                class="btn btn-outline-primary"
+                type="button"
+                (click)="uploadAvatar()"
+                [disabled]="!canUploadAvatar()"
+              >
+                {{ avatarUploading() ? 'Subiendo avatar...' : 'Subir avatar' }}
+              </button>
+
+              @if (selectedAvatarName()) {
+                <button class="btn btn-outline-secondary" type="button" (click)="clearSelectedAvatar()">
+                  Descartar seleccion
+                </button>
+              }
+
+              @if (hasAvatar()) {
+                <button
+                  class="btn btn-outline-secondary"
+                  type="button"
+                  (click)="removeAvatar()"
+                  [disabled]="avatarUploading()"
+                >
+                  Quitar avatar
+                </button>
+              }
+            </div>
+
+            <div class="form-text mt-2" [class.text-danger]="avatarError()">{{ avatarHint() }}</div>
+          </section>
+
+          <section class="profile-block">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+              <h2 class="h6 mb-0">Datos de usuario</h2>
+              @if (formDirty()) {
+                <span class="badge text-bg-warning">Cambios sin guardar</span>
+              } @else {
+                <span class="badge text-bg-light border">Sin cambios pendientes</span>
+              }
+            </div>
+
+            <label class="form-label">Nombre</label>
+            <input class="form-control" formControlName="name" />
+
+            <div
+              class="small mt-1"
+              [class.text-danger]="form.controls.name.touched && form.controls.name.invalid"
+              [class.text-success]="form.controls.name.touched && form.controls.name.valid"
+              [class.text-muted]="!form.controls.name.touched"
+            >
+              {{ nameHint() }}
+            </div>
+
+            <div class="mt-2">
+              <button
+                class="btn btn-sm btn-outline-secondary"
+                type="button"
+                (click)="resetNameField()"
+                [disabled]="!formDirty()"
+              >
+                Restablecer nombre
+              </button>
+            </div>
+          </section>
+
+          <div class="profile-actions">
+            <button class="btn btn-primary" type="submit" [disabled]="form.invalid || loading() || !formDirty()">
+              {{ loading() ? 'Guardando...' : 'Guardar cambios' }}
+            </button>
+
+            <button class="btn btn-outline-danger" type="button" (click)="logout()" [disabled]="logoutLoading()">
+              {{ logoutLoading() ? 'Cerrando...' : 'Cerrar sesion' }}
+            </button>
+
+            <a class="btn btn-outline-secondary ms-auto" routerLink="/plants">Ir a plantas</a>
+          </div>
+        </form>
+
+        @if (success()) {
+          <div class="alert alert-success mt-3 py-2 mb-0">{{ success() }}</div>
+        }
+
+        @if (error()) {
+          <div class="alert alert-danger mt-3 py-2 mb-0">{{ error() }}</div>
+        }
+      </div>
+    </section>
+  } @else {
+    <div class="alert alert-warning">
+      No hay sesion iniciada.
+      <a routerLink="/login" class="ms-2">Ir al login</a>
+    </div>
+  }
+</div>
+

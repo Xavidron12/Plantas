@@ -1,4 +1,14 @@
-import { Component, DestroyRef, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
+﻿import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnDestroy,
+  OnInit,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
@@ -15,100 +25,9 @@ import { RecordsListComponent } from '../components/records-list.component';
 @Component({
   standalone: true,
   imports: [CommonModule, RouterLink, MatIconModule, RecordsChartComponent, RecordsListComponent],
-  template: `
-    <div class="container">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h2 class="mb-0">Detalle de planta</h2>
-          <div class="text-muted">Realtime + gráfica</div>
-        </div>
-        <a class="btn btn-outline-secondary" routerLink="/plants">Volver</a>
-      </div>
-
-      <div class="alert alert-danger" *ngIf="error()">{{ error() }}</div>
-
-      <ng-container *ngIf="plant(); else loading">
-        <div class="card mb-3">
-          <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start gap-3">
-              <div class="flex-grow-1">
-                <h3 class="mb-1">{{ plant()!.name }}</h3>
-                <div class="text-muted" *ngIf="plant()!.description">{{ plant()!.description }}</div>
-                <div class="text-muted mt-2">
-                  Ubicación: {{ plant()!.lat }}, {{ plant()!.lng }}
-                </div>
-
-                <div class="mt-3" *ngIf="photoUrl()">
-                  <img [src]="photoUrl()!" class="img-fluid rounded border" style="max-height: 260px;">
-                </div>
-              </div>
-
-              <div class="d-flex flex-column gap-2">
-                <button
-                  type="button"
-                  class="btn d-inline-flex align-items-center gap-1"
-                  [class.btn-outline-danger]="!isFav()"
-                  [class.btn-danger]="isFav()"
-                  (click)="toggleFav()"
-                  title="Favorito"
-                >
-                  <mat-icon>{{ isFav() ? 'favorite' : 'favorite_border' }}</mat-icon>
-                  <span>{{ isFav() ? 'Quitar favorito' : 'Marcar favorito' }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card mb-3">
-          <div class="card-body">
-            <h5 class="mb-2">Estado de datos en tiempo real</h5>
-            <div class="text-muted small mb-3">
-              Los registros se generan en backend con Supabase (<code>pg_cron</code>) cada 1 minuto y esta vista se actualiza por Realtime.
-            </div>
-
-            <div class="row g-3">
-              <div class="col-12 col-md-3">
-                <div class="small text-muted mb-1">Conexión realtime</div>
-                <span
-                  class="badge"
-                  [class.bg-success]="realtimeStatus()==='subscribed'"
-                  [class.bg-warning]="realtimeStatus()==='connecting'"
-                  [class.bg-danger]="realtimeStatus()==='channel_error' || realtimeStatus()==='timed_out'"
-                  [class.bg-secondary]="realtimeStatus()==='closed'"
-                >
-                  {{ realtimeStatusLabel() }}
-                </span>
-              </div>
-
-              <div class="col-12 col-md-3">
-                <div class="small text-muted mb-1">Último registro</div>
-                <div>{{ lastRecordAt() }}</div>
-              </div>
-
-              <div class="col-12 col-md-3">
-                <div class="small text-muted mb-1">Registros recibidos (sesión)</div>
-                <div>{{ receivedInSession() }}</div>
-              </div>
-
-              <div class="col-12 col-md-3">
-                <div class="small text-muted mb-1">Frecuencia esperada</div>
-                <div>1 registro/minuto por planta</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <app-records-chart [records]="records()" />
-
-        <app-records-list [records]="records()" />
-      </ng-container>
-
-      <ng-template #loading>
-        <div class="alert alert-info">Cargando...</div>
-      </ng-template>
-    </div>
-  `,
+  templateUrl: './plant-detail.page.html',
+  styleUrl: './plant-detail.page.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlantDetailPage implements OnInit, OnDestroy {
   private plants = inject(PlantsService);
@@ -121,6 +40,9 @@ export class PlantDetailPage implements OnInit, OnDestroy {
   plant = signal<Plant | null>(null);
   records = signal<PlantRecord[]>([]);
   error = signal('');
+  loading = signal(true);
+  refreshing = signal(false);
+  lastSyncedAt = signal<Date | null>(null);
 
   realtimeStatus = signal<RealtimeChannelState>('closed');
   baselineRecordsCount = signal(0);
@@ -130,7 +52,7 @@ export class PlantDetailPage implements OnInit, OnDestroy {
   photoUrl = computed(() => {
     const p = this.plant();
     if (!p) return null;
-    return (p as any).photoUrl ?? null;
+    return p.photoUrl ?? null;
   });
 
   isFav = computed(() => {
@@ -154,23 +76,72 @@ export class PlantDetailPage implements OnInit, OnDestroy {
     }
   });
 
-  lastRecordAt = computed(() => {
+  latestRecord = computed(() => {
     const list = this.records();
-    if (!list.length) return 'Sin registros aún';
-    return this.formatDate(list[list.length - 1].createdAt);
+    return list.length ? list[list.length - 1] : null;
+  });
+
+  latestConsumption = computed(() => this.latestRecord()?.consumptionW ?? 0);
+  latestGeneration = computed(() => this.latestRecord()?.generationW ?? 0);
+
+  latestBalance = computed(() => this.latestGeneration() - this.latestConsumption());
+  coveragePct = computed(() => {
+    const consumption = this.latestConsumption();
+    const generation = this.latestGeneration();
+
+    if (consumption <= 0) return generation > 0 ? 100 : 0;
+
+    const raw = Math.round((generation / consumption) * 100);
+    return Math.max(0, Math.min(raw, 999));
+  });
+
+  avgConsumption = computed(() => {
+    const list = this.records();
+    if (!list.length) return 0;
+    const total = list.reduce((sum, r) => sum + r.consumptionW, 0);
+    return Math.round(total / list.length);
+  });
+
+  avgGeneration = computed(() => {
+    const list = this.records();
+    if (!list.length) return 0;
+    const total = list.reduce((sum, r) => sum + r.generationW, 0);
+    return Math.round(total / list.length);
+  });
+
+  balanceClass = computed(() => (this.latestBalance() >= 0 ? 'metric--positive' : 'metric--negative'));
+  balanceText = computed(() => {
+    const b = this.latestBalance();
+    if (b >= 200) return 'Excedente alto';
+    if (b >= 0) return 'Balance positivo';
+    if (b > -200) return 'Deficit leve';
+    return 'Deficit alto';
+  });
+
+  lastRecordAt = computed(() => {
+    const r = this.latestRecord();
+    if (!r) return 'Sin registros aun';
+    return this.formatDate(r.createdAt);
   });
 
   receivedInSession = computed(() => {
     return Math.max(this.records().length - this.baselineRecordsCount(), 0);
   });
 
+  lastSyncedLabel = computed(() => {
+    const d = this.lastSyncedAt();
+    if (!d) return 'Sincronizacion pendiente';
+    return `Sincronizado a las ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  });
+
   async ngOnInit() {
+    this.loading.set(true);
     this.error.set('');
 
     try {
       const plantId = this.id();
       if (!plantId) {
-        this.error.set('ID de planta inválido.');
+        this.error.set('ID de planta invalido.');
         return;
       }
 
@@ -195,12 +166,14 @@ export class PlantDetailPage implements OnInit, OnDestroy {
         .pipe(takeUntilDestroyed(this.destroyRef))
         .subscribe(status => this.realtimeStatus.set(status));
 
-      await this.recordsService.refreshPlant(plantId);
+      await this.refreshRecords();
       this.baselineRecordsCount.set(this.records().length);
 
       this.recordsService.startRealtime(plantId);
     } catch (e: any) {
       this.error.set(e?.message ?? String(e));
+    } finally {
+      this.loading.set(false);
     }
   }
 
@@ -230,9 +203,30 @@ export class PlantDetailPage implements OnInit, OnDestroy {
     }
   }
 
-  private formatDate(value: string) {
+  async refreshRecords() {
+    const plantId = this.id();
+    if (!plantId) return;
+
+    this.error.set('');
+    this.refreshing.set(true);
+    try {
+      await this.recordsService.refreshPlant(plantId);
+      this.lastSyncedAt.set(new Date());
+    } catch (e: any) {
+      this.error.set(e?.message ?? String(e));
+    } finally {
+      this.refreshing.set(false);
+    }
+  }
+
+  formatWatts(value: number): string {
+    return `${Math.round(value).toLocaleString()} W`;
+  }
+
+  private formatDate(value: string): string {
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return value;
     return d.toLocaleString();
   }
 }
+

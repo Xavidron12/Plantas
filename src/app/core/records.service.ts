@@ -1,6 +1,9 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from '../services/supabase.service';
 import { BehaviorSubject, Observable, distinctUntilChanged, map, shareReplay } from 'rxjs';
+import { PlantRecord } from '../models/record.model';
+
+export type { PlantRecord } from '../models/record.model';
 
 type RecordRow = {
   id: string;
@@ -14,16 +17,14 @@ type AdminRecordRow = RecordRow & {
   plants?: { name?: string | null } | { name?: string | null }[] | null;
 };
 
-export type PlantRecord = {
-  id: string;
-  plantId: string;
-  consumptionW: number;
-  generationW: number;
-  createdAt: string;
-};
-
 export type AdminRecord = PlantRecord & {
   plantName: string;
+};
+
+type RecordRowInput = {
+  plant_id: string;
+  consumption_w?: number;
+  generation_w?: number;
 };
 
 export type RealtimeChannelState =
@@ -75,14 +76,17 @@ export class RecordsService {
     };
   }
 
-  private toRow(partial: Partial<PlantRecord> & { plantId: string }): any {
-    const p: any = partial ?? {};
-    const row: any = {
-      plant_id: p.plantId,
+  private toRow(partial: Partial<PlantRecord> & { plantId: string }): RecordRowInput {
+    const row: RecordRowInput = {
+      plant_id: partial.plantId,
     };
 
-    if ('consumptionW' in p) row.consumption_w = p.consumptionW;
-    if ('generationW' in p) row.generation_w = p.generationW;
+    if ('consumptionW' in partial && partial.consumptionW !== undefined) {
+      row.consumption_w = partial.consumptionW;
+    }
+    if ('generationW' in partial && partial.generationW !== undefined) {
+      row.generation_w = partial.generationW;
+    }
 
     return row;
   }
